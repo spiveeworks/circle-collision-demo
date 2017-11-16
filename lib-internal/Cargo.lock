@@ -1,4 +1,14 @@
 [root]
-name = "charm_internal"
-version = "0.1.0"
+name = "city_internal"
+version = "0.0.0"
+dependencies = [
+ "sulphate-lib 0.1.0 (git+https://github.com/spiveeworks/sulphate)",
+]
 
+[[package]]
+name = "sulphate-lib"
+version = "0.1.0"
+source = "git+https://github.com/spiveeworks/sulphate#b4250fffb21b4ac5408702ed208f0676f32cfa69"
+
+[metadata]
+"checksum sulphate-lib 0.1.0 (git+https://github.com/spiveeworks/sulphate)" = "<none>"
