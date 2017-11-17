@@ -1,0 +1,8 @@
+[package]
+name = "lib-math"
+version = "0.0.0"
+authors = ["SpiveeWorks <spiveehere@gmail.com>"]
+
+[dependencies]
+fix = "0.1.0"
+typenum = "^1.9.0"
