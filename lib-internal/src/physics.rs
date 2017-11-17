@@ -40,8 +40,8 @@ impl Body {
     pub fn new_frozen(position: units::Position) -> Body {
         Body {
             last_position: position,
-            current_velocity: units::ZERO_VEC,
-            last_time: 0,
+            current_velocity: Default::default(),
+            last_time: Default::default(),
         }
     }
 
@@ -69,7 +69,7 @@ impl Body {
 
     pub fn split_to(
         &self,
-        end_point: units::Vec2,
+        end_point: units::Position,
         now: units::Time,
         end_time: units::Time
     ) -> Body {
@@ -77,7 +77,7 @@ impl Body {
             self.position(now),
             end_point,
             now,
-            end_time
+            end_time - now
         )
     }
 
@@ -91,7 +91,7 @@ impl Body {
 
     pub fn bounce_to(
         &mut self,
-        end_point: units::Vec2,
+        end_point: units::Position,
         now: units::Time,
         end_time: units::Time
     ) {
@@ -99,7 +99,7 @@ impl Body {
     }
 
     pub fn freeze(&mut self, now: units::Time) {
-        self.bounce(units::Vec2 { x: 0, y: 0 }, now);
+        self.bounce(Default::default(), now);
     }
 }
 

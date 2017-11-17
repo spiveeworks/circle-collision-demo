@@ -5,3 +5,4 @@ authors = ["SpiveeWorks <spiveehere@gmail.com>"]
 
 [dependencies]
 sulphate-lib = { git = "https://github.com/spiveeworks/sulphate" }
+lib-math = { path = "../lib-math" }
