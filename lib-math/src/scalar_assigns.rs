@@ -38,6 +38,18 @@ impl ops::DivAssign for Scalar {
     }
 }
 
+impl ops::MulAssign<i32> for Scalar {
+    fn mul_assign(self: &mut Scalar, other: i32) {
+        self.0.bits *= other;
+    }
+}
+
+impl ops::DivAssign<i32> for Scalar {
+    fn div_assign(self: &mut Scalar, other: i32) {
+        self.0.bits /= other;
+    }
+}
+
 impl ops::RemAssign for Scalar {
     fn rem_assign(self: &mut Scalar, other: Scalar) {
         self.0 %= other.0;

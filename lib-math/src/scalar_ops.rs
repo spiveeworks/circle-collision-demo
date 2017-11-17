@@ -84,3 +84,27 @@ impl ops::Rem for Scalar {
     }
 }
 
+impl ops::Mul<i32> for Scalar {
+    type Output = Scalar;
+    fn mul(mut self: Scalar, other: i32) -> Scalar {
+        self *= other;
+        self
+    }
+}
+
+impl ops::Mul<Scalar> for i32 {
+    type Output = Scalar;
+    fn mul(self: i32, mut other: Scalar) -> Scalar {
+        other *= self;
+        other
+    }
+}
+
+impl ops::Div<i32> for Scalar {
+    type Output = Scalar;
+    fn div(mut self: Scalar, other: i32) -> Scalar {
+        self /= other;
+        self
+    }
+}
+

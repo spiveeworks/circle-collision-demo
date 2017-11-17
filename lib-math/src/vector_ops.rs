@@ -76,9 +76,33 @@ impl ops::Mul<Vector> for Scalar {
     }
 }
 
+impl ops::Mul<i32> for Vector {
+    type Output = Vector;
+    fn mul(mut self: Vector, other: i32) -> Vector {
+        self *= other;
+        self
+    }
+}
+
+impl ops::Mul<Vector> for i32 {
+    type Output = Vector;
+    fn mul(self: i32, mut other: Vector) -> Vector {
+        other *= self;
+        other
+    }
+}
+
 impl ops::Div<Scalar> for Vector {
     type Output = Vector;
     fn div(mut self: Vector, other: Scalar) -> Vector {
+        self /= other;
+        self
+    }
+}
+
+impl ops::Div<i32> for Vector {
+    type Output = Vector;
+    fn div(mut self: Vector, other: i32) -> Vector {
         self /= other;
         self
     }

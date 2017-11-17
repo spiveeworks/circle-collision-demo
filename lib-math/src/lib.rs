@@ -33,6 +33,18 @@ pub struct Position {
     pub y: Coord,
 }
 
+impl From<i16> for Scalar {
+    fn from(val: i16) -> Scalar {
+        Scalar(NarrowInner::new((val as i32) << 16))
+    }
+}
+
+impl From<Scalar> for i16 {
+    fn from(val: Scalar) -> i16 {
+        (val.0.bits >> 16) as i16
+    }
+}
+
 fn narrow(val: WideInner) -> NarrowInner {
     NarrowInner::new(val.bits as i32)
 }
