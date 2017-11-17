@@ -1,11 +1,12 @@
 extern crate fix;
 extern crate typenum;
 
+mod scalar_ops;
+
 use std::fmt;
-use std::ops;
 
 use fix::aliases::binary::{IFix32, IFix64};
-use typenum::{N16, N32};
+use typenum::N16;
 
 // useful for Coord division operations (dividing a space into sections)
 // pub type Int = i32;
@@ -22,6 +23,15 @@ pub struct Coord(WideInner);
 pub struct Vector(Scalar, Scalar, Scalar);
 #[derive(Clone, Copy, Hash, Default, Debug, PartialEq, Eq)]
 pub struct Position(Coord, Coord, Coord);
+
+fn narrow(val: WideInner) -> NarrowInner {
+    NarrowInner::new(val.bits as i32)
+}
+
+fn wide(val: NarrowInner) -> WideInner {
+    WideInner::new(val.bits as i64)
+}
+
 impl fmt::Debug for Coord {
     fn fmt(self: &Self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "{}", self)
@@ -63,3 +73,6 @@ impl fmt::Display for Scalar {
         write!(f, "{}", as_coord)
     }
 }
+
+
+
