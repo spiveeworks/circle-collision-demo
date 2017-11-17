@@ -1,18 +1,15 @@
 extern crate fix;
 extern crate typenum;
 
+// bunch of trait implementations
 mod scalar_assigns;
 mod scalar_ops;
+mod scalar_misc;
 mod vector_assigns;
 mod vector_ops;
 
-use std::fmt;
-
 use fix::aliases::binary::{IFix32, IFix64};
 use typenum::N16;
-
-// useful for Coord division operations (dividing a space into sections)
-// pub type Int = i32;
 
 type NarrowInner = IFix32<N16>;
 type WideInner = IFix64<N16>;
@@ -33,18 +30,6 @@ pub struct Position {
     pub y: Coord,
 }
 
-impl From<i16> for Scalar {
-    fn from(val: i16) -> Scalar {
-        Scalar(NarrowInner::new((val as i32) << 16))
-    }
-}
-
-impl From<Scalar> for i16 {
-    fn from(val: Scalar) -> i16 {
-        (val.0.bits >> 16) as i16
-    }
-}
-
 fn narrow(val: WideInner) -> NarrowInner {
     NarrowInner::new(val.bits as i32)
 }
@@ -52,48 +37,4 @@ fn narrow(val: WideInner) -> NarrowInner {
 fn wide(val: NarrowInner) -> WideInner {
     WideInner::new(val.bits as i64)
 }
-
-impl fmt::Debug for Coord {
-    fn fmt(self: &Self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", self)
-    }
-}
-
-impl fmt::Debug for Scalar {
-    fn fmt(self: &Self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", self)
-    }
-}
-
-impl fmt::Display for Coord {
-    fn fmt(self: &Self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let x = self.0.bits;
-        let hi = x >> 16;
-        let lo_mask = (1 << 16) - 1;
-        let lo = x & lo_mask;
-        write!(f, "{}", hi)?;
-        if lo > 0 {
-            write!(f, ".")?;
-            let mut remaining = lo.abs();
-            while remaining > 0 {
-                remaining *= 10;
-                write!(f, "{}", remaining >> 16)?;
-                remaining &= lo_mask;
-            }
-        }
-        Ok(())
-    }
-}
-
-impl fmt::Display for Scalar {
-    fn fmt(self: &Self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        if self.0.bits > 0 {
-            write!(f, "+")?;
-        }
-        let as_coord = Coord::default() + self.clone();
-        write!(f, "{}", as_coord)
-    }
-}
-
-
 
