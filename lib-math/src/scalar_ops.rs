@@ -14,36 +14,41 @@ impl ops::Neg for Scalar {
 
 impl ops::Add for Scalar {
     type Output = Scalar;
-    fn add(self: Scalar, other: Scalar) -> Scalar {
-        Scalar(self.0 + other.0)
+    fn add(mut self: Scalar, other: Scalar) -> Scalar {
+        self += other;
+        self
     }
 }
 
 impl ops::Add<Scalar> for Coord {
     type Output = Coord;
-    fn add(self: Coord, other: Scalar) -> Coord {
-        Coord(self.0 + wide(other.0))
+    fn add(mut self: Coord, other: Scalar) -> Coord {
+        self += other;
+        self
     }
 }
 
 impl ops::Add<Coord> for Scalar {
     type Output = Coord;
-    fn add(self: Scalar, other: Coord) -> Coord {
-        Coord(wide(self.0) + other.0)
+    fn add(self: Scalar, mut other: Coord) -> Coord {
+        other += self;
+        other
     }
 }
 
 impl ops::Sub for Scalar {
     type Output = Scalar;
-    fn sub(self: Scalar, other: Scalar) -> Scalar {
-        Scalar(self.0 - other.0)
+    fn sub(mut self: Scalar, other: Scalar) -> Scalar {
+        self -= other;
+        self
     }
 }
 
 impl ops::Sub<Scalar> for Coord {
     type Output = Coord;
-    fn sub(self: Coord, other: Scalar) -> Coord {
-        Coord(self.0 - wide(other.0))
+    fn sub(mut self: Coord, other: Scalar) -> Coord {
+        self -= other;
+        self
     }
 }
 
@@ -66,8 +71,9 @@ impl ops::Div for Scalar {
 
 impl ops::Rem for Scalar {
     type Output = Scalar;
-    fn rem(self: Scalar, other: Scalar) -> Scalar {
-        Scalar(self.0 % other.0)
+    fn rem(mut self: Scalar, other: Scalar) -> Scalar {
+        self %= other;
+        self
     }
 }
 

@@ -1,6 +1,7 @@
 extern crate fix;
 extern crate typenum;
 
+mod scalar_assigns;
 mod scalar_ops;
 
 use std::fmt;
