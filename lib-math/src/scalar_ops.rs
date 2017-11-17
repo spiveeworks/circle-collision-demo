@@ -3,7 +3,7 @@ use std::ops;
 use fix::aliases::binary::IFix64;
 use typenum::N32;
 
-use {Scalar, Coord, wide, narrow};
+use {Scalar, Coord, narrow, wide};
 
 impl ops::Neg for Scalar {
     type Output = Self;
@@ -49,6 +49,13 @@ impl ops::Sub<Scalar> for Coord {
     fn sub(mut self: Coord, other: Scalar) -> Coord {
         self -= other;
         self
+    }
+}
+
+impl ops::Sub for Coord {
+    type Output = Scalar;
+    fn sub(self: Coord, other: Coord) -> Scalar {
+        Scalar(narrow(self.0 - other.0))
     }
 }
 

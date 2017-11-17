@@ -10,11 +10,8 @@ pub const SEC: Time = 1 << 16; // 65536
 // things that ought to be seen, will last at least this long
 // so by keeping the framerate above 16, these things will be seen!
 pub const MOMENT: Time = SEC / 16;
-// a DOT is merely the distance traveled in a SEC with a velocity of 1
-// in this way it is a useful stepping stone
-// it represents something close to the minimum reasonable distance
-// when working with velocities
 pub const DOT: Scalar = SEC;
+pub const DPS: Scalar = DOT;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Vec2 {

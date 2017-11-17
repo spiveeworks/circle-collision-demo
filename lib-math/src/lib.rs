@@ -3,6 +3,8 @@ extern crate typenum;
 
 mod scalar_assigns;
 mod scalar_ops;
+mod vector_assigns;
+mod vector_ops;
 
 use std::fmt;
 
@@ -20,10 +22,16 @@ pub struct Scalar(NarrowInner);
 #[derive(Clone, Copy, Hash, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Coord(WideInner);
 
-#[derive(Clone, Copy, Hash, Default, Debug, PartialEq, Eq)]
-pub struct Vector(Scalar, Scalar, Scalar);
-#[derive(Clone, Copy, Hash, Default, Debug, PartialEq, Eq)]
-pub struct Position(Coord, Coord, Coord);
+#[derive(Clone, Copy, Hash, Default, PartialEq, Eq, Debug)]
+pub struct Vector {
+    pub x: Scalar,
+    pub y: Scalar,
+}
+#[derive(Clone, Copy, Hash, Default, PartialEq, Eq, Debug)]
+pub struct Position {
+    pub x: Coord,
+    pub y: Coord,
+}
 
 fn narrow(val: WideInner) -> NarrowInner {
     NarrowInner::new(val.bits as i32)
