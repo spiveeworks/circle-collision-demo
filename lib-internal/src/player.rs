@@ -6,7 +6,7 @@ use physics;
 pub struct Player {
     body: physics::Body,
     // stimulus from the game world
-    update: mpsc::Sender<Update>,
+    _update: mpsc::Sender<Update>,
 }
 
 
@@ -49,12 +49,12 @@ pub trait External {
 impl Player {
     pub fn new(
         space: &mut sulphate::EntityHeap,
-        time: &mut sulphate::EventQueue,
+        _time: &mut sulphate::EventQueue,
         position: physics::Position,
-        update: mpsc::Sender<Update>,
+        _update: mpsc::Sender<Update>,
     ) -> sulphate::EntityId {
         let body = physics::Body::new_frozen(position);
-        let player = Player { body, update };
+        let player = Player { body, _update };
         // TODO implement fn add(self: &mut Self, val: T) -> EntityId
         space.add(player)
     }
