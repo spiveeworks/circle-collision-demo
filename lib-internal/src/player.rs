@@ -27,8 +27,8 @@ pub enum UpdateData {
     }
 }
 
-pub trait External {
-    fn update(
+impl Control {
+    pub fn apply(
         space: &mut sulphate::EntityHeap,
         time: &mut sulphate::EventQueue,
         id: sulphate::EntityId,

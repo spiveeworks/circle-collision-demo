@@ -13,4 +13,6 @@ pub mod sulphate {
     pub type EventQueue = event_queue::EventQueue<physics::Time>;
     pub type EntityHeap = entity_heap::EntityHeap;
     pub type EntityId = entity_heap::UID;
+
+    pub mod server;
 }
