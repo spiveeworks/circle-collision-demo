@@ -5,5 +5,5 @@ authors = ["SpiveeWorks <spiveehere@gmail.com>"]
 
 [dependencies]
 piston_window = "0.72.0"
-charm_internal = { path = 'lib-internal' }
+city_internal = { path = 'lib-internal' }
 

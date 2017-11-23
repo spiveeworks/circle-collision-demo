@@ -1,6 +1,6 @@
 use std::ops;
 
-use charm_internal::units;
+use city_internal::physics::units;
 
 use game::grenade_builder;
 

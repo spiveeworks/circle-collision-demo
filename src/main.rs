@@ -2,9 +2,9 @@ extern crate piston_window;
 
 use piston_window::*;
 
-extern crate charm_internal;
+extern crate city_internal;
 
-mod game;
+mod client;
 
 
 fn settings() -> WindowSettings {
@@ -15,8 +15,7 @@ fn settings() -> WindowSettings {
 }
 
 fn main() {
-    let mut game_data = game::Game::new();
-
+    let client = client::start_game();
 
     let mut window: PistonWindow =
         settings().build()
@@ -25,16 +24,16 @@ fn main() {
                   });
     while let Some(e) = window.next() {
         if let Some(ren) = e.render_args() {
-            window.draw_2d(&e, |c, g| game_data.on_draw(c, g, ren));
+            window.draw_2d(&e, |c, g| client.on_draw(c, g, ren));
         }
         if let Some(upd) = e.update_args() {
-            game_data.on_update(upd);
+            client.on_update(upd);
         }
         if let Some(bin) = e.button_args() {
-            game_data.on_input(bin);
+            client.on_input(bin);
         }
         if let Some(mouse) = e.mouse_cursor_args() {
-            game_data.on_mouse_move(mouse);
+            client.on_mouse_move(mouse);
         }
     }
 }

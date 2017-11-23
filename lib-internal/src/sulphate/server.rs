@@ -115,13 +115,15 @@ type Server = server::Server<Clock, Interruption, units::Time>;
 
 fn create_server_local<F>(
     f: F,
-    send_back: mpsc::Sender<mpsc::Sender<Interruption>>,
+    upd: mpsc::Receiver<Interruption>,
+    cb: mpsc::Sender<R>,
 ) -> Server
-    where F: FnOnce(&mut sulphate::EntityHeap, &mut sulphate::EventQueue)
+    where F: FnOnce(
+                 &mut sulphate::EntityHeap,
+                 &mut sulphate::EventQueue,
+             ) -> R,
+          R: Send + 'static,
 {
-    let (send, recv) = mpsc::channel();
-    send_back.send(send).expect("failed to send back server feed");
-
     let initial_time = Default::default();
     let mut clock = Clock(Simple::new(initial_time));
     clock.0.start(time::Instant::now());
@@ -129,19 +131,36 @@ fn create_server_local<F>(
     let mut space = sulphate::EntityHeap::new();
     let mut time = sulphate::EventQueue::new(initial_time);
 
-    f(&mut space, &mut time);
+    let r = f(&mut space, &mut time);
 
-    Server::new(space, time, recv, clock)
+    let server = Server::new(space, time, upd, clock.clone());
+
+    (server, clock, r)
 }
 
-pub fn start_server<F>(f: F) -> mpsc::Sender<Interruption>
+pub fn start_server<F>(f: F) -> (
+    mpsc::Sender<Interruption>,
+    Clock,
+    R,
+)
     where F: Send + 'static
-           + FnOnce(&mut sulphate::EntityHeap, &mut sulphate::EventQueue)
+           + FnOnce(
+                 &mut sulphate::EntityHeap,
+                 &mut sulphate::EventQueue,
+             ) -> R,
+          R: Send + 'static,
 {
+    let (upd, upd_recv) = mpsc::channel();
     let (send, recv) = mpsc::channel();
+
     thread::spawn(move || {
-        let mut server = create_server_local(f, send);
+        let (mut server, clock, r) =
+            create_server_local(f, upd_recv);
+        send.send((clock, r)).expect("failed to send server result");
         server.run();
     });
-    recv.recv().expect("failed to receive server feed")
+
+    let (clock, r) = recv.recv().expect("failed to receive server result");
+
+    (upd, clock, r)
 }

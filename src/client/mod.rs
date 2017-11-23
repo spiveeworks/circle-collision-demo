@@ -1,33 +1,39 @@
-use charm_internal::units;
+use city_internal::physics::units;
 
 use piston_window as app;
 
-mod clock;
 mod draw;
-mod game_state;
-mod grenade_builder;
 mod user_input;
+mod trackers;
 
 
 
-
-pub struct Game {
-    state: game_state::GameState,
-    real_time: clock::Stuttering,
+pub struct Client {
+    vision: trackers::Perception,
+    clock: server::Clock,
     input: user_input::Input,
-    arsenal: grenade_builder::Builder,
 }
 
 
 
-impl Game {
-    pub fn new() -> Game {
-        let state = game_state::GameState::new();
-        let real_time = clock::Stuttering::new(state.time.now());
-        let input = user_input::Input::new();
-        let arsenal = grenade_builder::Builder::new();
+pub fn start_game() -> Client {
+    let (upd, clock, client_data) = start_server(|space, time|
+        ()
+    );
 
-        Game { state, real_time, input, arsenal }
+    Client::new(upd, clock, client_data)
+}
+
+impl Client {
+    fn new(
+        upd: mpsc::Sender<server::Interruption>,
+        clock: server::Clock,
+        data: (),
+    ) -> Client {
+        let vision = trackers::Perception::new();
+        let input = user_input::Input::new();
+
+        Client { vision, clock, input }
     }
 
     pub fn on_update(&mut self, _upd: app::UpdateArgs) {
@@ -91,7 +97,7 @@ impl Game {
             // TODO make generic functions for rendering things
             // really the objects should generate a Graphics enum
             // and then Draw should be implemented for the enum itself
-            use charm_internal::entity_heap::Entity::{Smoke, Bolt};
+            use city_internal::entity_heap::Entity::{Smoke, Bolt};
             match *ent {
                 Smoke(ref item) => {
                     let position = item.body.position(now);
