@@ -1,8 +1,8 @@
 extern crate sulphate_lib;
 extern crate lib_math;
 
+pub mod entities;
 pub mod physics;
-pub mod player;
 
 pub mod sulphate {
     use sulphate_lib::entity_heap;

@@ -1,5 +1,6 @@
 use std::sync::mpsc;
 
+use entities;
 use sulphate;
 use physics;
 
