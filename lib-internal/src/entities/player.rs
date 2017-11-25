@@ -7,9 +7,21 @@ use physics;
 pub struct Player {
     body: physics::Body,
     // stimulus from the game world
-    _update: mpsc::Sender<Update>,
+    update: mpsc::Sender<Update>,
 }
 
+#[derive(PartialEq, Eq)]
+pub struct Image {
+    body: physics::Body,
+}
+
+impl entities::Display for Player {
+    fn image(self: &Self) -> entities::Image {
+        let body = self.body.clone();
+        let img = Image { body };
+        entities::Image::Player(img)
+    }
+}
 
 pub enum Control {
     Move {
@@ -24,8 +36,14 @@ pub struct Update {
 
 pub enum UpdateData {
     Created {
-        location: physics::Position,
-    }
+        id: sulphate::EntityId,
+        position: physics::Position,
+    },
+    Update {
+        id: sulphate::EntityId,
+        before: entities::Image,
+        after: entities::Image,
+    },
 }
 
 impl Control {
@@ -38,9 +56,12 @@ impl Control {
         use self::Control::*;
         match data {
             Move { velocity } => {
-                if let Some(ent) = space.get_mut(id) {
+                let now = time.now();
+                let mut this =
+                    entities::TrackImage::track_image(space, time, id);
+                if let Some(ent) = this.get_mut() {
                     let player: &mut Player = ent;
-                    player.body.bounce(velocity, time.now());
+                    player.body.bounce(velocity, now);
                 }
             }
         }
@@ -48,15 +69,46 @@ impl Control {
 }
 
 impl Player {
-    pub fn new(
-        space: &mut sulphate::EntityHeap,
-        _time: &mut sulphate::EventQueue,
+    fn send(
+        self: &Self,
+        update: Update,
+    ) {
+        if let Err(_) = self.update.send(update) {
+            println!("Player failed to send update to device");
+        }
+    }
+
+    pub fn new<'a>(
+        space: &'a mut sulphate::EntityHeap,
+        time: &'a mut sulphate::EventQueue,
         position: physics::Position,
-        _update: mpsc::Sender<Update>,
-    ) -> sulphate::EntityId {
+        update: mpsc::Sender<Update>,
+    ) -> entities::TrackImage<'a, Player> {
         let body = physics::Body::new_frozen(position);
-        let player = Player { body, _update };
-        // TODO implement fn add(self: &mut Self, val: T) -> EntityId
-        space.add(player)
+        let player = Player { body, update };
+        let this = entities::TrackImage::track_new(space, time, player);
+
+        let when = this.now();
+        let id = this.id();
+        let what = UpdateData::Created { id, position };
+        let update = Update { when, what };
+        this.get().unwrap().send(update);
+
+        this
+    }
+
+    pub fn update(
+        this: entities::TrackImage<Player>,
+        id: sulphate::EntityId,
+        before: entities::Image,
+        after: entities::Image,
+    ) {
+        if let Some(player) = this.get() {
+            let when = this.now();
+            let what = UpdateData::Update { id, before, after };
+            let update = Update { when, what };
+            player.send(update);
+        }
     }
 }
+

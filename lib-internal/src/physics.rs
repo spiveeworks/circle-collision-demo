@@ -30,6 +30,29 @@ pub struct Body {
     last_time: units::Time,
 }
 
+impl PartialEq for Body {
+    fn eq(self: &Self, other: &Self) -> bool {
+        // note that we don't check for equivalence
+        // this is so that rounding errors are propagated consistently
+        let pos_eq = self.last_position == other.last_position;
+        let vel_eq = self.current_velocity == other.current_velocity;
+        let time_eq = self.last_time == other.last_time;
+        // stationary objects have the same position regardless of when they
+        // became still.
+        let time_eq_enough = {
+            if vel_eq == Default::default() {
+                true
+            } else {
+                time_eq
+            }
+        };
+        pos_eq && vel_eq && time_eq_enough
+    }
+}
+
+impl Eq for Body {}
+
+
 impl Body {
     pub fn new(
         position: units::Position,

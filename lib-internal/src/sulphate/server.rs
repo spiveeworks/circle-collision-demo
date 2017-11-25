@@ -4,8 +4,8 @@ use std::thread;
 
 use sulphate_lib::server;
 
+use entities::player;
 use physics::units;
-use player;
 use sulphate;
 
 pub enum Interruption {
@@ -113,11 +113,10 @@ impl server::Clock<units::Time> for Clock {
 
 type Server = server::Server<Clock, Interruption, units::Time>;
 
-fn create_server_local<F>(
+fn create_server_local<F, R>(
     f: F,
     upd: mpsc::Receiver<Interruption>,
-    cb: mpsc::Sender<R>,
-) -> Server
+) -> (Server, Clock, R)
     where F: FnOnce(
                  &mut sulphate::EntityHeap,
                  &mut sulphate::EventQueue,
@@ -138,7 +137,7 @@ fn create_server_local<F>(
     (server, clock, r)
 }
 
-pub fn start_server<F>(f: F) -> (
+pub fn start_server<F, R>(f: F) -> (
     mpsc::Sender<Interruption>,
     Clock,
     R,
