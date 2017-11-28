@@ -6,7 +6,7 @@ use physics::units;
 
 pub mod player;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum Image {
     Player(player::Image),
     None,
@@ -79,19 +79,46 @@ impl<'a, T> TrackImage<'a, T>
         self.space.get_mut(self.id)
     }
 
+    pub fn reborrow<U>(
+        self: &mut Self,
+        id: sulphate::EntityId,
+    ) -> TrackImage<U>
+        where U: any::Any + Display
+    {
+        TrackImage::track_image(&mut self.space, &mut self.time, id)
+    }
+
     pub fn remove(self: &mut Self) -> Option<T> {
         self.space.remove(self.id)
     }
+}
+
+fn has_eyes(thing: &any::Any) -> bool {
+    any::Any::get_type_id(thing) == any::TypeId::of::<player::Player>()
 }
 
 impl<'a, T> Drop for TrackImage<'a, T>
     where T: any::Any + Display
 {
     fn drop(self: &mut Self) {
+        let id = self.id;
+        let before = self.before.clone();
         let after = get_image::<T>(self.space, self.id);
-        if self.before != after {
-            // TODO what?!
-            unimplemented!()
+        if before != after {
+            let player_ids: Vec<sulphate::EntityId> =
+                self.space
+                    .iter()
+                    .flat_map(|(ent_id, ent)|
+                        if has_eyes(ent) {
+                            Some(ent_id)
+                        } else {
+                            None
+                        }
+                   ).collect();
+            for player_id in player_ids {
+                let player = self.reborrow(player_id);
+                player::Player::update(player, id, before.clone(), after.clone());
+            }
         }
     }
 }

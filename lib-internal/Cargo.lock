@@ -1,15 +1,15 @@
-[root]
+[[package]]
+name = "bitflags"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "city_internal"
 version = "0.0.0"
 dependencies = [
  "lib-math 0.0.0",
  "sulphate-lib 0.1.0 (git+https://github.com/spiveeworks/sulphate)",
 ]
-
-[[package]]
-name = "bitflags"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "fix"
@@ -60,7 +60,7 @@ dependencies = [
 [[package]]
 name = "sulphate-lib"
 version = "0.1.0"
-source = "git+https://github.com/spiveeworks/sulphate#044329e07da67a2767f325743c2d1b2dd450c7f9"
+source = "git+https://github.com/spiveeworks/sulphate#dd97d5a974294756a6518c9d5b74b4da5e2e7479"
 dependencies = [
  "rand 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

@@ -1,3 +1,5 @@
+#![feature(get_type_id)]
+
 extern crate sulphate_lib;
 extern crate lib_math;
 

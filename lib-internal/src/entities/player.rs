@@ -10,7 +10,7 @@ pub struct Player {
     update: mpsc::Sender<Update>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct Image {
     body: physics::Body,
 }
