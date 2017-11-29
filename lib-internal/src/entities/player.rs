@@ -12,7 +12,7 @@ pub struct Player {
 
 #[derive(PartialEq, Eq, Clone)]
 pub struct Image {
-    body: physics::Body,
+    pub body: physics::Body,
 }
 
 impl entities::Display for Player {

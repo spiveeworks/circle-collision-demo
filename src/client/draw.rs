@@ -1,66 +1,82 @@
-use city_internal::physics::units;
+use city_internal::entities;
+use city_internal::physics;
 
 use piston_window as app;
 
-pub trait Draw {
-    fn draw(self: &Self, trans: app::math::Matrix2d, graphics: &mut app::G2d);
-}
-
-pub fn draw_at<G: Draw>(
-    draw: &G,
-    position: units::Position,
+pub fn draw(
+    draw: &entities::Image,
+    time: physics::Time,
     center: app::math::Matrix2d,
-    graphics: &mut app::G2d
+    graphics: &mut app::G2d,
 ) {
-    // methods for operating on our 2d matrices
-    use piston_window::Transformed;
-
-    let pos = floatify_position(position);
-    let trans = center.trans(pos[0], pos[1]);
-    draw.draw(trans, graphics);
-}
-
-fn floatify_position(position: units::Position) -> [f64; 2] {
-    let units::Vec2 {x, y} = position;
-    let x = x as f64 / units::DOT as f64;
-    let y = y as f64 / units::DOT as f64;
-    [x, y]
-}
-
-fn collect_quadruple<T, I>(iter: I) -> Result<[T; 4], Vec<T>>
-    where I: Iterator<Item=T>
-{
-    let vec: Vec<T> = iter.collect();
-    if vec.len() == 4 {
-        let mut vals = vec.into_iter();
-        let el0 = vals.next().unwrap();
-        let el1 = vals.next().unwrap();
-        let el2 = vals.next().unwrap();
-        let el3 = vals.next().unwrap();
-        Ok([el0, el1, el2, el3])
-    } else {
-        Err(vec)
+    use city_internal::entities::Image::*;
+    match *draw {
+        Player(ref player) => {
+            player.draw(time, center, graphics);
+        },
     }
 }
 
-fn floatify_color(bytes: [u8; 4]) -> [f32; 4] {
-    let floats = bytes
-        .iter()
-        .cloned()
-        .map(|byte| byte as f32 / 256.0);
-    collect_quadruple(floats).unwrap()
+fn center_on<T>(center: T, position: physics::Position) -> T
+    where T: app::Transformed
+{
+    let pos = floatify_position(position);
+    center.trans(pos[0], pos[1])
 }
 
-impl Draw for effects::Circle {
-    fn draw(self: &Self, trans: app::math::Matrix2d, graphics: &mut app::G2d) {
-        let ucolor = effects::Effect::color(&*self.color);
-        let fcolor = floatify_color(ucolor);
+trait Draw {
+    fn draw(
+        self: &Self,
+        time: physics::Time,
+        center: app::math::Matrix2d,
+        graphics: &mut app::G2d,
+    );
+}
 
-        let radius = self.radius as f64 / units::DOT as f64;
+impl Draw for entities::player::Image {
+    fn draw(
+        self: &Self,
+        time: physics::Time,
+        center: app::math::Matrix2d,
+        graphics: &mut app::G2d,
+    ) {
+        // transform screen so that player is at the center
+        let position = self.body.position(time);
+        let trans = center_on(center, position);
+
+        // draw a circle at this new center
+        let color = [1.0, 0.0, 0.0, 1.0];
+        let radius = 10.0;
+        let circle = Circle { color, radius };
+        circle.draw(time, trans, graphics);
+    }
+}
+
+
+fn floatify_position(position: physics::Position) -> [f64; 2] {
+    let origin: physics::Position = Default::default();
+    let vec = position - origin;
+    [vec.x.into(), vec.y.into()]
+}
+
+
+struct Circle {
+    color: [f32; 4],
+    radius: f64,
+}
+
+impl Draw for Circle {
+    fn draw(
+        self: &Self,
+        _time: physics::Time,
+        trans: app::math::Matrix2d,
+        graphics: &mut app::G2d
+    ) {
+        let Circle { color, radius } = *self;
         // we could transform but this seems clearer
         let rect = [-radius, -radius, 2.0 * radius, 2.0 * radius];
 
-        app::ellipse(fcolor, rect, trans, graphics);
+        app::ellipse(color, rect, trans, graphics);
     }
 }
 

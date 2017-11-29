@@ -92,6 +92,47 @@ impl Simple {
 #[derive(Clone)]
 pub struct Clock(Simple);
 
+pub trait ClockMethods {
+    fn in_game(self: &mut Self, now: time::Instant) -> units::Time;
+    fn minimum_wait(
+        self: &mut Self,
+        now: units::Time,
+        until: units::Time,
+    ) -> time::Duration;
+    fn finished_cycle(
+        self: &mut Self,
+        now: time::Instant,
+        in_game: units::Time
+    );
+    fn end_cycles(self: &mut Self);
+}
+
+impl<C> ClockMethods for C where C: server::Clock<units::Time> {
+    fn in_game(self: &mut Self, now: time::Instant) -> units::Time {
+        server::Clock::in_game(self, now)
+    }
+
+    fn minimum_wait(
+        self: &mut Self,
+        now: units::Time,
+        until: units::Time,
+    ) -> time::Duration {
+        server::Clock::minimum_wait(self, now, until)
+    }
+
+    fn finished_cycle(
+        self: &mut Self,
+        now: time::Instant,
+        in_game: units::Time
+    ) {
+        server::Clock::finished_cycle(self, now, in_game)
+    }
+
+    fn end_cycles(self: &mut Self) {
+        server::Clock::end_cycles(self);
+    }
+}
+
 impl server::Clock<units::Time> for Clock {
     fn in_game(self: &mut Self, now: time::Instant) -> units::Time {
         self.0.time(now)

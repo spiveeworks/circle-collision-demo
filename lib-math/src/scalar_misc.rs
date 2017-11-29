@@ -15,6 +15,21 @@ impl From<Scalar> for i16 {
     }
 }
 
+/*
+// more accurate to do <f64 as From>::from(x) as f32
+impl From<Scalar> for f32 {
+    fn from(val: Scalar) -> f32 {
+        val.0.bits as f32 / (1 << 16) as f32
+    }
+}
+*/
+
+impl From<Scalar> for f64 {
+    fn from(val: Scalar) -> f64 {
+        val.0.bits as f64 / (1 << 16) as f64
+    }
+}
+
 
 impl PartialEq<i16> for Scalar {
     fn eq(self: &Scalar, other: &i16) -> bool {
