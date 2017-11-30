@@ -9,7 +9,7 @@ pub mod player;
 #[derive(PartialEq, Clone)]
 pub enum Image {
     Player(player::Image),
-    None,
+    Nothing,
 }
 
 
@@ -34,7 +34,7 @@ fn get_image<T>(space: &sulphate::EntityHeap, id: sulphate::EntityId) -> Image
 {
     space.get(id)
          .map(<T as Display>::image)
-         .unwrap_or(Image::None)
+         .unwrap_or(Image::Nothing)
 }
 
 impl<'a, T> TrackImage<'a, T>
@@ -56,7 +56,7 @@ impl<'a, T> TrackImage<'a, T>
         time: &'a mut sulphate::EventQueue,
         value: T,
     ) -> Self {
-        let before = Image::None;
+        let before = Image::Nothing;
         let id = space.add(value);
         let _phantom = marker::PhantomData;
 

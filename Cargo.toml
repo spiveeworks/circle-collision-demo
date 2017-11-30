@@ -4,6 +4,6 @@ version = "0.0.0"
 authors = ["SpiveeWorks <spiveehere@gmail.com>"]
 
 [dependencies]
-piston_window = "0.72.0"
+piston_window = "0.73.0"
 city_internal = { path = 'lib-internal' }
 

@@ -15,7 +15,7 @@ fn settings() -> WindowSettings {
 }
 
 fn main() {
-    let client = client::start_game();
+    let mut client = client::start_game();
 
     let mut window: PistonWindow =
         settings().build()

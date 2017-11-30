@@ -7,6 +7,9 @@ pub mod units {
     pub type Time = lib_math::Coord;
     pub type Duration = lib_math::Scalar;
 
+    pub type Scalar = lib_math::Scalar;
+    pub type Coord = lib_math::Coord;
+
     // meant to be a minimal unit of time for rendering
     // things that ought to be seen, will last at least this long
     // so by keeping the framerate above 16, these things will be seen!

@@ -14,6 +14,7 @@ pub fn draw(
         Player(ref player) => {
             player.draw(time, center, graphics);
         },
+        Nothing => (),
     }
 }
 
