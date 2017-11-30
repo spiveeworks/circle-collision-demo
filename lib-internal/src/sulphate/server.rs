@@ -27,9 +27,9 @@ impl server::Interruption<units::Time> for Interruption {
             PlayerUpdate { id, control } => {
                 player::Control::apply(space, time, id, control);
             },
-            KillServer => return false,
+            KillServer => return true,
         }
-        true
+        false
     }
 }
 
@@ -178,6 +178,21 @@ fn create_server_local<F, R>(
     (server, clock, r)
 }
 
+struct ServerWatcher {
+    natural: bool
+}
+
+impl Drop for ServerWatcher {
+    fn drop(self: &mut Self) {
+        if self.natural {
+            println!("Server closed without panicking");
+        } else {
+            println!("Server panicked!");
+        }
+    }
+}
+
+
 pub fn start_server<F, R>(f: F) -> (
     mpsc::Sender<Interruption>,
     Clock,
@@ -194,10 +209,14 @@ pub fn start_server<F, R>(f: F) -> (
     let (send, recv) = mpsc::channel();
 
     thread::spawn(move || {
+        let mut announce_shutdown = ServerWatcher { natural: false };
+
         let (mut server, clock, r) =
             create_server_local(f, upd_recv);
         send.send((clock, r)).expect("failed to send server result");
         server.run();
+
+        announce_shutdown.natural = true;
     });
 
     let (clock, r) = recv.recv().expect("failed to receive server result");
