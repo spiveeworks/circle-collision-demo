@@ -5,9 +5,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "city_internal"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
- "lib-math 0.0.0",
+ "lib-math 0.2.0",
  "sulphate-lib 0.1.0 (git+https://github.com/spiveeworks/sulphate)",
 ]
 
@@ -37,7 +37,7 @@ dependencies = [
 
 [[package]]
 name = "lib-math"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
  "fix 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "typenum 1.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -45,7 +45,7 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.33"
+version = "0.2.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -54,13 +54,13 @@ version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "fuchsia-zircon 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.34 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "sulphate-lib"
 version = "0.1.0"
-source = "git+https://github.com/spiveeworks/sulphate#dd97d5a974294756a6518c9d5b74b4da5e2e7479"
+source = "git+https://github.com/spiveeworks/sulphate#dd02be51a27d9663105fbefed13953bcbeb0d78d"
 dependencies = [
  "rand 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -75,7 +75,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum fix 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "915708177c784db10dbbeccb18d302f77a30c8443b45d0e4494055f26c23cbd0"
 "checksum fuchsia-zircon 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f6c0581a4e363262e52b87f59ee2afe3415361c6ec35e665924eb08afe8ff159"
 "checksum fuchsia-zircon-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "43f3795b4bae048dc6123a6b972cadde2e676f9ded08aef6bb77f5f157684a82"
-"checksum libc 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)" = "5ba3df4dcb460b9dfbd070d41c94c19209620c191b0340b929ce748a2bcd42d2"
+"checksum libc 0.2.34 (registry+https://github.com/rust-lang/crates.io-index)" = "36fbc8a8929c632868295d0178dd8f63fc423fd7537ad0738372bd010b3ac9b0"
 "checksum rand 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)" = "6475140dfd8655aeb72e1fd4b7a1cc1c202be65d71669476e392fe62532b9edd"
 "checksum sulphate-lib 0.1.0 (git+https://github.com/spiveeworks/sulphate)" = "<none>"
 "checksum typenum 1.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "13a99dc6780ef33c78780b826cf9d2a78840b72cae9474de4bcaf9051e60ebbd"
