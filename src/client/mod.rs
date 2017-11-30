@@ -86,10 +86,10 @@ impl Client {
         let mut velocity: units::Velocity = Default::default();
         let speed: units::Scalar = 150.into();
 
-        if dirs.up    { velocity.y += speed; }
-        if dirs.down  { velocity.y -= speed; }
-        if dirs.left  { velocity.x += speed; }
-        if dirs.right { velocity.x -= speed; }
+        if dirs.up    { velocity.y -= speed; }
+        if dirs.down  { velocity.y += speed; }
+        if dirs.left  { velocity.x -= speed; }
+        if dirs.right { velocity.x += speed; }
 
         if velocity.x != 0 && velocity.y != 0 {
             velocity *= 5;
