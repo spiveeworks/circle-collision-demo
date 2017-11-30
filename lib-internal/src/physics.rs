@@ -1,4 +1,30 @@
-use units;
+pub use self::units::{Time, Duration, Displacement, Velocity, Position};
+
+// use a module to hide `lib_math`
+pub mod units {
+    use lib_math;
+
+    pub type Time = lib_math::Coord;
+    pub type Duration = lib_math::Scalar;
+
+    pub type Scalar = lib_math::Scalar;
+    pub type Coord = lib_math::Coord;
+
+    // meant to be a minimal unit of time for rendering
+    // things that ought to be seen, will last at least this long
+    // so by keeping the framerate above 16, these things will be seen!
+
+    pub const MOMENT_RATE: u16 = 16;
+
+    pub fn moments(num: i16) -> Duration {
+        let as_scalar: lib_math::Scalar = num.into();
+        as_scalar / MOMENT_RATE as i32
+    }
+
+    pub type Displacement = lib_math::Vector;
+    pub type Velocity = lib_math::Vector;
+    pub type Position = lib_math::Position;
+}
 
 #[derive(Clone, Debug)]
 pub struct Body {
@@ -6,6 +32,29 @@ pub struct Body {
     current_velocity: units::Velocity,
     last_time: units::Time,
 }
+
+impl PartialEq for Body {
+    fn eq(self: &Self, other: &Self) -> bool {
+        // note that we don't check for equivalence
+        // this is so that rounding errors are propagated consistently
+        let pos_eq = self.last_position == other.last_position;
+        let vel_eq = self.current_velocity == other.current_velocity;
+        let time_eq = self.last_time == other.last_time;
+        // stationary objects have the same position regardless of when they
+        // became still.
+        let time_eq_enough = {
+            if vel_eq == Default::default() {
+                true
+            } else {
+                time_eq
+            }
+        };
+        pos_eq && vel_eq && time_eq_enough
+    }
+}
+
+impl Eq for Body {}
+
 
 impl Body {
     pub fn new(
