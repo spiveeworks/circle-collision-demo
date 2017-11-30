@@ -1,9 +1,8 @@
 [package]
-name = "lil-city"
+name = "lib-math"
 version = "0.2.0"
 authors = ["SpiveeWorks <spiveehere@gmail.com>"]
 
 [dependencies]
-piston_window = "0.73.0"
-city_internal = { path = 'lib-internal' }
-
+fix = "0.1.0"
+typenum = "^1.9.0"
