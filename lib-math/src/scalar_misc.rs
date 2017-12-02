@@ -3,6 +3,59 @@ use std::cmp;
 
 use super::{Scalar, Coord, NarrowInner};
 
+
+impl Scalar {
+    pub fn from_bits(bits: i32) -> Scalar {
+        Scalar(NarrowInner::new(bits))
+    }
+
+    pub fn into_bits(self: Scalar) -> i32 {
+        self.0.bits
+    }
+
+    pub fn rough_sqrt(self: Scalar) -> Scalar {
+        // this is x * 2 ^ 16
+        let bits = self.0.bits;
+        // this is root_x * 2 ^ 8
+        let result = rough_sqrt(bits, 8, 6);
+        Scalar::from_bits(result << 8)
+    }
+}
+
+// note there is a nice approximation algorithm at
+// https://users.rust-lang.org/t/integer-square-root-algorithm/13529/5
+// but this is fine for now
+fn rough_sqrt(val: i32, magnitude: i8, iterations: u8) -> i32 {
+    if val == 0 { return 0; }
+    let mut result = val >> ((magnitude + 16) / 2);
+    for _ in 0 .. iterations {
+        result = val / 2 / result + result / 2;
+    }
+    result
+}
+
+#[cfg(test)]
+mod test_rough_sqrt {
+    #[test]
+    fn test_sqrts() {
+        for i in 0..5000 {
+            test_sqrt(i);
+        }
+    }
+
+    fn test_sqrt(num: i16) {
+        let val: ::Scalar = num.into();
+        let root = val.rough_sqrt();
+        let approx = root * root;
+        // very generous test
+        assert!(
+            num - 1 < approx && approx < num + 1,
+            "Scalar::sqrt({}.into()) is horrible", num
+        );
+    }
+}
+
+
 impl From<i16> for Scalar {
     fn from(val: i16) -> Scalar {
         Scalar(NarrowInner::new((val as i32) << 16))

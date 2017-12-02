@@ -37,13 +37,3 @@ fn narrow(val: WideInner) -> NarrowInner {
 fn wide(val: NarrowInner) -> WideInner {
     WideInner::new(val.bits as i64)
 }
-
-impl Scalar {
-    pub fn from_bits(bits: i32) -> Self {
-        Scalar(NarrowInner::new(bits))
-    }
-
-    pub fn into_bits(self: Self) -> i32 {
-        self.0.bits
-    }
-}
