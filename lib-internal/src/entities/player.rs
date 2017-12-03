@@ -1,67 +1,63 @@
 use std::sync::mpsc;
 
 use entities;
+use space;
 use sulphate;
-use physics;
+use units;
 
 pub struct Player {
-    body: physics::Body,
     // stimulus from the game world
     update: mpsc::Sender<Update>,
 }
 
 #[derive(PartialEq, Eq, Clone)]
-pub struct Image {
-    pub body: physics::Body,
-}
+pub struct Image;
 
 impl entities::Display for Player {
-    fn image(self: &Self) -> entities::Image {
-        let body = self.body.clone();
-        let img = Image { body };
-        entities::Image::Player(img)
+    fn image(self: &Self) -> Option<entities::Image> {
+        let img = Image;
+        Some(entities::Image::Player(img))
     }
 }
 
 pub enum Control {
     Move {
-        velocity: physics::Velocity
+        velocity: units::Velocity
     }
 }
 
 pub struct Update {
-    pub when: physics::Time,
+    pub when: units::Time,
     pub what: UpdateData,
 }
 
 pub enum UpdateData {
     Created {
         id: sulphate::EntityId,
-        position: physics::Position,
+        position: units::Position,
     },
-    Update {
-        id: sulphate::EntityId,
-        before: entities::Image,
-        after: entities::Image,
+    Vision {
+        before: Option<space::Image>,
+        after: Option<space::Image>,
     },
 }
 
 impl Control {
     pub fn apply(
-        space: &mut sulphate::EntityHeap,
+        space: &mut space::CollisionSpace,
         time: &mut sulphate::EventQueue,
+        matter: &mut sulphate::EntityHeap,
         id: sulphate::EntityId,
         data: Control,
     ) {
         use self::Control::*;
         match data {
             Move { velocity } => {
-                let now = time.now();
-                let mut this =
-                    entities::TrackImage::track_image(space, time, id);
-                if let Some(ent) = this.get_mut() {
-                    let player: &mut Player = ent;
-                    player.body.bounce(velocity, now);
+                let mut this: space::Entry<Player> =
+                    space.entry(time, matter, id);
+                let mv_result = this.set_velocity(velocity);
+                if mv_result.is_err() {
+                    println!("Player has no location!");
                 }
             }
         }
@@ -79,33 +75,38 @@ impl Player {
     }
 
     pub fn new<'a>(
-        space: &'a mut sulphate::EntityHeap,
+        space: &'a mut space::CollisionSpace,
         time: &'a mut sulphate::EventQueue,
-        position: physics::Position,
+        matter: &'a mut sulphate::EntityHeap,
+        position: units::Position,
         update: mpsc::Sender<Update>,
-    ) -> entities::TrackImage<'a, Player> {
-        let body = physics::Body::new_frozen(position);
-        let player = Player { body, update };
-        let this = entities::TrackImage::track_new(space, time, player);
+    ) -> space::Entry<'a, Player> {
+        let player = Player { update };
+        let id = matter.add(player);
+        let mut this: space::Entry<Player> = space.entry(time, matter, id);
+
+        this.set_position(position);
 
         let when = this.now();
-        let id = this.id();
         let what = UpdateData::Created { id, position };
         let update = Update { when, what };
         this.get().unwrap().send(update);
 
         this
     }
+}
 
-    pub fn update(
-        this: entities::TrackImage<Player>,
-        id: sulphate::EntityId,
-        before: entities::Image,
-        after: entities::Image,
+impl space::Eyes for Player {
+    fn update(
+        this: space::Entry<Player>,
+        before_ref: Option<&space::Image>,
+        after_ref: Option<&space::Image>,
     ) {
         if let Some(player) = this.get() {
+            let before = before_ref.cloned();
+            let after = after_ref.cloned();
             let when = this.now();
-            let what = UpdateData::Update { id, before, after };
+            let what = UpdateData::Vision { before, after };
             let update = Update { when, what };
             player.send(update);
         }

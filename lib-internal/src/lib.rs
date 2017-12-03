@@ -3,7 +3,7 @@
 extern crate sulphate_lib;
 extern crate lib_math;
 
-//pub mod entities;
+pub mod entities;
 pub mod space;
 // module to hide `lib_math`
 pub mod units;
