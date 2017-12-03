@@ -29,11 +29,8 @@ impl CollisionSpace {
     ) -> Option<Image>
         where T: any::Any + entities::Display
     {
-        let ty = any::TypeId::of::<T>();
-        let uid = EntityUId { instance, ty };
-        let maybe_body = self.contents.get(&uid);
+        let maybe_body = self.get::<T>(instance);
 
-        use entities::Display;
         maybe_body.map(|c_body| c_body.body.clone())
                   .and_then(|body| {
             matter.get::<T>(instance)
@@ -88,27 +85,18 @@ impl<'a, T> Entry<'a, T>
         vel: units::Velocity,
     ) -> Result<(), ()>
     {
-        let instance = self.id;
-        let ty = any::TypeId::of::<T>();
-        let uid = EntityUId { instance, ty };
-
         self.space
-            .contents
-            .get_mut(&uid)
+            .get_mut::<T>(self.id)
             .map(|c_body| { c_body.set_velocity(vel); })
             .ok_or(())
     }
 
     pub fn set_position(self: &mut Self, pos: units::Position) {
-        let instance = self.id;
-        let ty = any::TypeId::of::<T>();
-        let uid = EntityUId { instance, ty };
-
-        self.space.contents
-            .get_mut(&uid)
+        self.space
+            .get_mut::<T>(self.id)
             .map_or_else(
                 || {
-                    let body = Body::new_frozen(pos);
+                    let _body = Body::new_frozen(pos);
                     unimplemented!();
                 },
                 |c_body| { c_body.set_position(pos) },
@@ -134,8 +122,8 @@ impl<'a, T> Drop for Entry<'a, T>
             let vision_ids: Vec<EyesId> =
                 self.space
                     .contents
-                    .keys()
-                    .cloned()
+                    .iter()
+                    .map(|&(uid, _)| uid)
                     .flat_map(as_eyes)
                     .collect();
             for vision_id in vision_ids {

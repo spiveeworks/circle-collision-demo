@@ -1,6 +1,6 @@
 use std::any;
-use std::collections;
 
+use entities;
 use sulphate;
 
 mod body;
@@ -21,13 +21,44 @@ struct EntityUId {
 // a space is a collection of entities with some kind of location-allocation.
 // it is the medium through which entities can communicate psedunymously
 pub struct CollisionSpace {
-    contents: collections::HashMap<EntityUId, body::CollisionBody>
+    contents: Vec<(EntityUId, body::CollisionBody)>
 }
 
 impl CollisionSpace {
     pub fn new() -> Self {
-        let contents = collections::HashMap::new();
+        let contents = Vec::new();
         CollisionSpace { contents }
+    }
+
+    fn find<T>(self: &Self, instance: sulphate::EntityId) -> Option<usize>
+        where T: any::Any + entities::Display
+    {
+        let ty = any::TypeId::of::<T>();
+        let uid = EntityUId { instance, ty };
+        for (n, &(ent_uid, _)) in self.contents.iter().enumerate() {
+            if uid == ent_uid {
+                return Some(n);
+            }
+        }
+        None
+    }
+
+
+    fn get<T>(self: &Self, instance: sulphate::EntityId) -> Option<&body::CollisionBody>
+        where T: any::Any + entities::Display
+    {
+        self.find::<T>(instance)
+            .map(|n| &self.contents[n].1)
+    }
+
+    fn get_mut<T>(
+        self: &mut Self,
+        instance: sulphate::EntityId,
+    ) -> Option<&mut body::CollisionBody>
+        where T: any::Any + entities::Display
+    {
+        self.find::<T>(instance)
+            .map(move |n| &mut self.contents[n].1)  // moves self - a reference
     }
 }
 
