@@ -33,6 +33,8 @@ enum MarchResult {
     Collide(units::Time),
     /// Objects close to eachother but will not collide
     Miss,
+    /// Objects have the same velocity so cannot collide
+    Stable,
 }
 
 // this is the edge-to-edge distance at which ray-marching and precise hit-scan
@@ -50,6 +52,9 @@ fn march(
     other: &CollisionBody,
     time: units::Time
 ) -> MarchResult {
+    if one.body.velocity() == other.body.velocity() {
+        return MarchResult::Stable;
+    }
     let one_pos = one.body.position(time);
     let other_pos = other.body.position(time);
     let centre_dist_squared = (one_pos - other_pos).squared();
@@ -68,6 +73,7 @@ fn march(
         // otherwise march for a while
         let centre_dist = units::Scalar::rough_sqrt(centre_dist_squared);
         let edge_dist = centre_dist - proximity;
+        // safe since speeds are positive and unequal
         let march_time = edge_dist / (one.speed + other.speed);
         MarchResult::March(time + march_time)
     }

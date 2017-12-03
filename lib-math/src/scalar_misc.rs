@@ -17,8 +17,8 @@ impl Scalar {
         // this is x * 2 ^ 16
         let bits = self.0.bits;
         // this is root_x * 2 ^ 8
-        let result = rough_sqrt(bits, 8, 6);
-        Scalar::from_bits(result << 8)
+        let result = rough_sqrt(bits as u32, 8, 6);
+        Scalar::from_bits((result as i32) << 8)
     }
 
     pub fn sqrt(self: Scalar) -> Scalar {
@@ -33,9 +33,12 @@ impl Scalar {
 // note there is a nice approximation algorithm at
 // https://users.rust-lang.org/t/integer-square-root-algorithm/13529/5
 // but this is fine for now
-fn rough_sqrt(val: i32, magnitude: i8, iterations: u8) -> i32 {
-    if val == 0 { return 0; }
+fn rough_sqrt(val: u32, magnitude: i8, iterations: u8) -> u32 {
     let mut result = val >> ((magnitude + 16) / 2);
+    // this is similar to an epsilon value, but it will only last
+    // the specified number of iterations before it becomes zero
+    // meaning it also gives sqrt(0) = 0
+    result += 1 << (iterations - 1);
     for _ in 0 .. iterations {
         result = val / 2 / result + result / 2;
     }
@@ -47,19 +50,43 @@ mod test_rough_sqrt {
     #[test]
     fn test_sqrts() {
         for i in 0..5000 {
-            test_sqrt(i);
+            test_sqrt_err(i);
         }
     }
 
-    fn test_sqrt(num: i16) {
+    fn test_sqrt_err(num: i16) {
         let val: ::Scalar = num.into();
+
         let root = val.rough_sqrt();
         let approx = root.squared();
+
         // very generous test
         assert!(
-            num - 1 < approx && approx < num + 1,
-            "Scalar::sqrt({}.into()) is horrible", num
+            val - 1.into() < approx && approx <= val,
+            "Scalar::sqrt({}) is horrible, [{}^2 = {}]", val, root, approx
         );
+    }
+
+    fn test_small_sqrt(num: i32) {
+        let val = ::Scalar::from_bits(num);
+
+        let root = val.rough_sqrt();
+        let approx = root.squared();
+
+        // very generous test
+        assert!(
+             (val - approx).squared() < 1,
+            "Scalar::sqrt({}) is horrible, [{}^2 = {}]", val, root, approx
+        );
+    }
+
+    #[test]
+    fn test_small_sqrts_exhaustive() {
+        println!("Testing");
+        let max_val: ::Scalar = 8.into();
+        for val in 0..max_val.into_bits() {
+            test_small_sqrt(val);
+        }
     }
 }
 
