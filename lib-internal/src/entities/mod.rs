@@ -2,7 +2,7 @@ use std::any;
 use std::marker;
 
 use sulphate;
-use physics::units;
+use units;
 
 pub mod player;
 

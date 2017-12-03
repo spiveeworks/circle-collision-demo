@@ -20,6 +20,14 @@ impl Scalar {
         let result = rough_sqrt(bits, 8, 6);
         Scalar::from_bits(result << 8)
     }
+
+    pub fn sqrt(self: Scalar) -> Scalar {
+        self.rough_sqrt()
+    }
+
+    pub fn squared(self: Scalar) -> Scalar {
+        self * self
+    }
 }
 
 // note there is a nice approximation algorithm at
@@ -46,7 +54,7 @@ mod test_rough_sqrt {
     fn test_sqrt(num: i16) {
         let val: ::Scalar = num.into();
         let root = val.rough_sqrt();
-        let approx = root * root;
+        let approx = root.squared();
         // very generous test
         assert!(
             num - 1 < approx && approx < num + 1,

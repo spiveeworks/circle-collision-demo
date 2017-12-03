@@ -5,8 +5,8 @@ use std::thread;
 use sulphate_lib::server;
 
 use entities::player;
-use physics::units;
 use sulphate;
+use units;
 
 pub enum Interruption {
     PlayerUpdate {

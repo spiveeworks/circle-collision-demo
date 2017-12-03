@@ -7,6 +7,7 @@ mod scalar_ops;
 mod scalar_misc;
 mod vector_assigns;
 mod vector_ops;
+mod vector_misc;
 
 use fix::aliases::binary::{IFix32, IFix64};
 use typenum::N16;
