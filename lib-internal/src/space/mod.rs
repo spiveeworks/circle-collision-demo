@@ -14,7 +14,9 @@ pub use self::eyes::Image;
 // a space is a collection of entities with some kind of location-allocation.
 // it is the medium through which entities can communicate psedunymously
 pub struct CollisionSpace {
-    contents: Vec<(sulphate::EntityUId, body::CollisionBody)>
+    contents: Vec<(EntityUId, body::CollisionBody)>,
+    last_collision_time: units::Time,
+    collisions: Vec<(EntityUId, EntityUId)>,
 }
 
 impl CollisionSpace {

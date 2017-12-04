@@ -3,9 +3,57 @@ use units;
 use super::CollisionSpace;
 
 impl CollisionSpace {
-    pub(super) fn update_physics<T>(self: &mut Self) {
-        unimplemented!();
+    pub fn march<T>(self: &Self, ) {
+        let n = self.find::<T>(instance);
+        let (others, rest) = self.contents.split(n);
+        let this = &rest[0];
+
+        let march = None;
+        let collisions = Vec::with_capacity(others.len());
+
+        for &(other_uid, ref other) in others {
+            use MarchResult::*;
+            match march_result(this, other) {
+                Miss | Stable => (),
+                Collide(t) => {
+                    collisions.append((t, other_uid));
+                },
+                March(t) => {
+                    march = Some(min(t, march.unwrap_or(t)));
+                },
+            }
+        }
+
+        let march_event = MarchEvent { uid, time };
+        time.enqueue();
+        for (time, id) in collisions) {
+            time.enqueue();
+        }
     }
+}
+
+struct CollideEvent {
+}
+
+impl sulphate::Event<units::Time> for CollideEvent {
+    fn invoke(
+        self: Self,
+        space: &mut CollisionSpace,
+        time: &mut EventQueue,
+        matter: &mut EntityHeap,
+    ) {
+        if {}
+        if {}
+        let first_image = get_entity(matter, self.first);
+        let second_image = get_entity(matter, self.second);
+        Entity::collide();
+        Entity::collide();
+    }
+}
+
+
+
+struct MarchEvent {
 }
 
 pub struct CollisionBody {
@@ -43,11 +91,13 @@ enum MarchResult {
 // but its optimal value will change between builds,
 // hypothetically you could select this value during an automated release
 // process
+// TODO change this to be a speed, and deal with the consequences
+// (such as sufficiently slow objects getting radically inaccurate march times)
 fn march_threshold() -> units::Distance {
     5.into()
 }
 
-fn march(
+fn march_result(
     one: &CollisionBody,
     other: &CollisionBody,
     time: units::Time
@@ -72,7 +122,9 @@ fn march(
     } else {
         // otherwise march for a while
         let centre_dist = units::Scalar::rough_sqrt(centre_dist_squared);
-        let edge_dist = centre_dist - proximity;
+        // don't subtract the threshold number, so that we
+        // end up inside the threshold
+        let edge_dist = centre_dist - one.radius - other.radius;
         // safe since speeds are positive and unequal
         let march_time = edge_dist / (one.speed + other.speed);
         MarchResult::March(time + march_time)
