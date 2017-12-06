@@ -1,7 +1,7 @@
 use std::any;
 use std::marker;
 
-use super::{Body, CollisionSpace, EntityUId};
+use super::{Body, CollisionSpace};
 
 use entities;
 use sulphate;
@@ -72,7 +72,7 @@ impl<'a, T> Entry<'a, T>
     pub fn body_mut (self: &mut Self) -> Option<&mut Body> {
         let instance = self.id;
         let ty = any::TypeId::of::<T>();
-        let uid = EntityUId { instance, ty };
+        let uid = sulphate::EntityUId { instance, ty };
         self.space
             .contents
             .get_mut(&uid)
@@ -144,9 +144,9 @@ enum EyesId {
     Player(sulphate::EntityId),
 }
 
-fn as_eyes(uid: EntityUId) -> Option<EyesId> {
+fn as_eyes(uid: sulphate::EntityUId) -> Option<EyesId> {
     if uid.ty == any::TypeId::of::<entities::Player>() {
-        Some(EyesId::Player(uid.instance))
+        Some(EyesId::Player(uid.id))
     } else {
         None
     }

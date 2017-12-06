@@ -8,7 +8,8 @@ name = "city_internal"
 version = "0.2.0"
 dependencies = [
  "lib-math 0.2.0",
- "sulphate-lib 0.1.0 (git+https://github.com/spiveeworks/sulphate)",
+ "rand 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sulphate-lib 0.2.0 (git+https://github.com/spiveeworks/sulphate)",
 ]
 
 [[package]]
@@ -59,8 +60,8 @@ dependencies = [
 
 [[package]]
 name = "sulphate-lib"
-version = "0.1.0"
-source = "git+https://github.com/spiveeworks/sulphate#dd02be51a27d9663105fbefed13953bcbeb0d78d"
+version = "0.2.0"
+source = "git+https://github.com/spiveeworks/sulphate#11c5975545eb04e481f1e860e6fb76e4335c6487"
 dependencies = [
  "rand 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -77,5 +78,5 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum fuchsia-zircon-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "43f3795b4bae048dc6123a6b972cadde2e676f9ded08aef6bb77f5f157684a82"
 "checksum libc 0.2.34 (registry+https://github.com/rust-lang/crates.io-index)" = "36fbc8a8929c632868295d0178dd8f63fc423fd7537ad0738372bd010b3ac9b0"
 "checksum rand 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)" = "6475140dfd8655aeb72e1fd4b7a1cc1c202be65d71669476e392fe62532b9edd"
-"checksum sulphate-lib 0.1.0 (git+https://github.com/spiveeworks/sulphate)" = "<none>"
+"checksum sulphate-lib 0.2.0 (git+https://github.com/spiveeworks/sulphate)" = "<none>"
 "checksum typenum 1.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "13a99dc6780ef33c78780b826cf9d2a78840b72cae9474de4bcaf9051e60ebbd"

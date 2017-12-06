@@ -83,7 +83,7 @@ impl Player {
     ) -> space::Entry<'a, Player> {
         let player = Player { update };
         let id = matter.add(player);
-        let mut this: space::Entry<Player> = space.entry(time, matter, id);
+        let mut this = space.entry::<Player>(time, matter, id);
 
         this.set_position(position);
 
