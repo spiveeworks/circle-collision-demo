@@ -2,6 +2,10 @@ use units;
 
 use super::CollisionSpace;
 
+pub trait Collide {
+    fn (this: Entry<Self>, other: Image);
+}
+
 impl CollisionSpace {
     pub fn march<T>(self: &Self, ) {
         let n = self.find::<T>(instance);
@@ -19,20 +23,21 @@ impl CollisionSpace {
                     collisions.append((t, other_uid));
                 },
                 March(t) => {
-                    march = Some(min(t, march.unwrap_or(t)));
+                    march = march.map(|u| min(t, u)).or(Some(t));
                 },
             }
         }
 
         let march_event = MarchEvent { uid, time };
         time.enqueue();
-        for (time, id) in collisions) {
+        for (time, id) in collisions {
             time.enqueue();
         }
     }
 }
 
 struct CollideEvent {
+
 }
 
 impl sulphate::Event<units::Time> for CollideEvent {
@@ -42,18 +47,47 @@ impl sulphate::Event<units::Time> for CollideEvent {
         time: &mut EventQueue,
         matter: &mut EntityHeap,
     ) {
-        if {}
-        if {}
-        let first_image = get_entity(matter, self.first);
-        let second_image = get_entity(matter, self.second);
-        Entity::collide();
-        Entity::collide();
+        if first_image.coll_eq(self.first_body, self.first_radius) {
+            return;
+        }
+        if second_image.coll_eq(self.second_body, self.second_radius) {
+            return;
+        }
+        if space.has_occured(time.now(), self.first_uid, self.second_uid) {
+            return;
+        }
+        collide(space, time, matter, self.first_uid, second_image);
+        collide(space, time, matter, self.second_uid, first_image);
+    }
+}
+
+fn collide(
+    space: &mut CollisionSpace,
+    time: &mut EventQueue,
+    matter: &mut EntityHeap,
+    uid: space::EntityUId,
+    with: space::Image,
+) {
+    if uid.ty == any::TypeId::of::<entities::Player> {
+        let ent = space.entry::<entities::Player>(time, matter, uid.instance);
+        Player::Collide(ent, with);
     }
 }
 
 
-
 struct MarchEvent {
+
+}
+
+impl sulphate::Event<units::Time> for MarchEvent {
+    fn invoke(
+        self: Self,
+        space: &mut CollisionSpace,
+        time: &mut EventQueue,
+        matter: &mut EntityHeap,
+    ) {
+        space.march();
+    }
 }
 
 pub struct CollisionBody {
