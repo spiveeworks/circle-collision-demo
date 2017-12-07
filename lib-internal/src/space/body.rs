@@ -1,92 +1,168 @@
+use std::any;
+use std::cmp;
+
+use entities;
+use space;
+use sulphate;
 use units;
 
-use super::CollisionSpace;
-
-pub trait Collide {
-    fn (this: Entry<Self>, other: Image);
+pub trait Collide: entities::Display + any::Any where Self: Sized {
+    fn collide(this: space::Entry<Self>, other: space::Image);
 }
 
-impl CollisionSpace {
-    pub fn march<T>(self: &Self, ) {
-        let n = self.find::<T>(instance);
-        let (others, rest) = self.contents.split(n);
-        let this = &rest[0];
+impl space::CollisionSpace {
+    pub fn march(
+        self: &Self,
+        time: &mut sulphate::EventQueue,
+        matter: &mut sulphate::EntityHeap,
+        uid: sulphate::EntityUId
+    ) {
+        let space = self;
+
+        let n = self.find_uid(uid);
+        if n.is_none() {
+            return;
+        }
+        let n = n.unwrap();
+
+        let (others, rest) = self.contents.split_at(n);
+        let (_, ref this) = rest[0];
 
         let march = None;
         let collisions = Vec::with_capacity(others.len());
 
         for &(other_uid, ref other) in others {
-            use MarchResult::*;
-            match march_result(this, other) {
+            use self::MarchResult::*;
+            match march_result(this, other, time.now()) {
                 Miss | Stable => (),
                 Collide(t) => {
-                    collisions.append((t, other_uid));
+                    collisions.push((t, other_uid));
                 },
                 March(t) => {
-                    march = march.map(|u| min(t, u)).or(Some(t));
+                    march = march.map(|u| cmp::min(t, u)).or(Some(t));
                 },
             }
         }
 
-        let march_event = MarchEvent { uid, time };
-        time.enqueue();
-        for (time, id) in collisions {
-            time.enqueue();
+        if let Some(march_time) = march {
+            let march_event = MarchEvent { uid };
+            time.enqueue_absolute(march_event, march_time);
+            unimplemented!();  // TODO update CollisionBody's march_time
         }
+
+        let first = CollideData::new(space, uid);
+        for (time, second_uid) in collisions {
+            let second = CollideData::new(space, second_uid);
+            let collide_event = CollideEvent { first, second };
+            time.enqueue_absolute(collide_event, time);
+        }
+    }
+}
+
+struct CollideData {
+    body: space::Body,
+    radius: units::Distance,
+    uid: sulphate::EntityUId,
+}
+
+impl CollideData {
+    fn new(
+        space: &space::CollisionSpace,
+        uid: sulphate::EntityUId,
+    ) -> Self {
+        unimplemented!();
+    }
+
+    fn correct_image(
+        self: &Self,
+        image: &space::Image,
+    ) -> bool {
+        unimplemented!();
     }
 }
 
 struct CollideEvent {
-
+    first: CollideData,
+    second: CollideData,
+    // this would be faster than generating the current radius and comparing it
+    // right?
+    // enqueue_time: units::Time,  // the initiator should have the same time
 }
 
-impl sulphate::Event<units::Time> for CollideEvent {
+// making this here because I can only add so many features at once
+// and making a clear downcasting system doesn't make that list
+fn image(
+    space: &space::CollisionSpace,
+    matter: &sulphate::EntityHeap,
+    uid: sulphate::EntityUId,
+) -> Option<space::Image> {
+    if uid.ty == any::TypeId::of::<entities::Player>() {
+        space.image::<entities::Player>(matter, uid.id)
+    } else {
+        panic!("Unknown entity in collide event");
+    }
+}
+
+impl sulphate::Event for CollideEvent {
     fn invoke(
         self: Self,
-        space: &mut CollisionSpace,
-        time: &mut EventQueue,
-        matter: &mut EntityHeap,
+        space: &mut space::CollisionSpace,
+        time: &mut sulphate::EventQueue,
+        matter: &mut sulphate::EntityHeap,
     ) {
-        if first_image.coll_eq(self.first_body, self.first_radius) {
+        let maybe_first_image = image(space, matter, self.first.uid);
+        let maybe_second_image = image(space, matter, self.second.uid);
+
+        if maybe_first_image.is_none() || maybe_second_image.is_none() {
             return;
         }
-        if second_image.coll_eq(self.second_body, self.second_radius) {
+
+        let first_image = maybe_first_image.unwrap();
+        let second_image = maybe_second_image.unwrap();
+
+        if !self.first.correct_image(&first_image)
+        || !self.second.correct_image(&second_image) {
             return;
         }
-        if space.has_occured(time.now(), self.first_uid, self.second_uid) {
+
+        if space.has_collided(time.now(), self.first.uid, self.second.uid) {
             return;
         }
-        collide(space, time, matter, self.first_uid, second_image);
-        collide(space, time, matter, self.second_uid, first_image);
+
+        collide(space, time, matter, self.first.uid, second_image);
+        collide(space, time, matter, self.second.uid, first_image);
     }
 }
 
 fn collide(
-    space: &mut CollisionSpace,
-    time: &mut EventQueue,
-    matter: &mut EntityHeap,
-    uid: space::EntityUId,
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    matter: &mut sulphate::EntityHeap,
+    uid: sulphate::EntityUId,
     with: space::Image,
 ) {
-    if uid.ty == any::TypeId::of::<entities::Player> {
-        let ent = space.entry::<entities::Player>(time, matter, uid.instance);
-        Player::Collide(ent, with);
+    if uid.ty == any::TypeId::of::<entities::Player>() {
+        let ent = space.entry::<entities::Player>(time, matter, uid.id);
+        Collide::collide(ent, with);
     }
 }
 
 
 struct MarchEvent {
-
+    uid: sulphate::EntityUId
 }
 
-impl sulphate::Event<units::Time> for MarchEvent {
+impl sulphate::Event for MarchEvent {
     fn invoke(
         self: Self,
-        space: &mut CollisionSpace,
-        time: &mut EventQueue,
-        matter: &mut EntityHeap,
+        space: &mut space::CollisionSpace,
+        time: &mut sulphate::EventQueue,
+        matter: &mut sulphate::EntityHeap,
     ) {
-        space.march();
+        let body = space.get_uid(self.uid);
+        if body.is_some() && body.unwrap().march_time == time.now() {
+            space.march(time, matter, self.uid);
+        }
     }
 }
 

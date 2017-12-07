@@ -2,6 +2,7 @@ use std::any;
 
 use entities;
 use sulphate;
+use units;
 
 mod body;
 mod eyes;
@@ -14,15 +15,17 @@ pub use self::eyes::Image;
 // a space is a collection of entities with some kind of location-allocation.
 // it is the medium through which entities can communicate psedunymously
 pub struct CollisionSpace {
-    contents: Vec<(EntityUId, body::CollisionBody)>,
+    contents: Vec<(sulphate::EntityUId, body::CollisionBody)>,
     last_collision_time: units::Time,
-    collisions: Vec<(EntityUId, EntityUId)>,
+    collisions: Vec<(sulphate::EntityUId, sulphate::EntityUId)>,
 }
 
 impl CollisionSpace {
-    pub fn new() -> Self {
+    pub fn new(initial_time: units::Time) -> Self {
         let contents = Vec::new();
-        CollisionSpace { contents }
+        let last_collision_time = initial_time;
+        let collisions = Vec::new();
+        CollisionSpace { contents, last_collision_time, collisions }
     }
 
     fn find<T>(self: &Self, id: sulphate::EntityId) -> Option<usize>
@@ -30,6 +33,10 @@ impl CollisionSpace {
     {
         let ty = any::TypeId::of::<T>();
         let uid = sulphate::EntityUId { id, ty };
+        self.find_uid(uid)
+    }
+
+    fn find_uid(self: &Self, uid: sulphate::EntityUId) -> Option<usize> {
         for (n, &(ent_uid, _)) in self.contents.iter().enumerate() {
             if uid == ent_uid {
                 return Some(n);
@@ -38,11 +45,21 @@ impl CollisionSpace {
         None
     }
 
-
-    fn get<T>(self: &Self, id: sulphate::EntityId) -> Option<&body::CollisionBody>
+    fn get<T>(
+        self: &Self,
+        id: sulphate::EntityId,
+    ) -> Option<&body::CollisionBody>
         where T: any::Any + entities::Display
     {
         self.find::<T>(id)
+            .map(|n| &self.contents[n].1)
+    }
+
+    fn get_uid(
+        self: &Self,
+        uid: sulphate::EntityUId,
+    ) -> Option<&body::CollisionBody> {
+        self.find_uid(uid)
             .map(|n| &self.contents[n].1)
     }
 

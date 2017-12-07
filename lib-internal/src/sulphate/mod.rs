@@ -25,7 +25,7 @@ pub struct World {
 
 impl Game {
     pub fn new(initial_time: units::Time) -> Game {
-        let space = space::CollisionSpace::new();
+        let space = space::CollisionSpace::new(initial_time);
         let time = EventQueue::new(initial_time);
         let matter = EntityHeap::new();
 
