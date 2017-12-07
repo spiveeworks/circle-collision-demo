@@ -15,52 +15,69 @@ pub fn update_physics<T>() {
     unimplemented!();
 }
 
-impl space::CollisionSpace {
-    pub fn march(
-        self: &Self,
-        time: &mut sulphate::EventQueue,
-        uid: sulphate::EntityUId
-    ) {
-        let space = self;
+fn march(
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    uid: sulphate::EntityUId
+) {
 
-        let n = self.find_uid(uid);
-        if n.is_none() {
-            return;
+    let n = space.find_uid(uid);
+    if n.is_none() {
+        return;
+    }
+    let n = n.unwrap();
+
+    let (march, collisions) = get_march_data(space, time.now(), n);
+    apply_march_data(space, time, uid, n, march, collisions);
+}
+
+fn get_march_data(
+    space: &space::CollisionSpace,
+    time_now: units::Time,
+    n: usize,
+) -> (Option<units::Time>, Vec<(units::Time, sulphate::EntityUId)>) {
+    let (others, rest) = space.contents.split_at(n);
+    let (_, ref this) = rest[0];
+
+    let mut march = None;
+    let mut collisions = Vec::with_capacity(others.len());
+
+    for &(other_uid, ref other) in others {
+        use self::MarchResult::*;
+        match march_result(this, other, time_now) {
+            Miss | Stable => (),
+            Collide(t) => {
+                collisions.push((t, other_uid));
+            },
+            March(t) => {
+                march = Some(march.map_or(t, |u| cmp::min(t, u)));
+            },
         }
-        let n = n.unwrap();
+    }
 
-        let (others, rest) = self.contents.split_at(n);
-        let (_, ref this) = rest[0];
+    (march, collisions)
+}
 
-        let mut march = None;
-        let mut collisions = Vec::with_capacity(others.len());
+fn apply_march_data(
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    uid: sulphate::EntityUId,
+    n: usize,
+    march: Option<units::Time>,
+    collisions: Vec<(units::Time, sulphate::EntityUId)>,
+) {
+    if let Some(march_time) = march {
+        let march_event = MarchEvent { uid };
+        sulphate::enqueue_absolute(time, march_event, march_time);
+    }
+    space.contents[n].1.march_time = march;
 
-        for &(other_uid, ref other) in others {
-            use self::MarchResult::*;
-            match march_result(this, other, time.now()) {
-                Miss | Stable => (),
-                Collide(t) => {
-                    collisions.push((t, other_uid));
-                },
-                March(t) => {
-                    march = march.map(|u| cmp::min(t, u)).or(Some(t));
-                },
-            }
-        }
-
-        if let Some(march_time) = march {
-            let march_event = MarchEvent { uid };
-            sulphate::enqueue_absolute(time, march_event, march_time);
-            unimplemented!();  // TODO update CollisionBody's march_time
-        }
-
-        let this = CollideData::new(space, uid);
-        for (coll_time, second_uid) in collisions {
-            let first = this.clone();
-            let second = CollideData::new(space, second_uid);
-            let collide_event = CollideEvent { first, second };
-            sulphate::enqueue_absolute(time, collide_event, coll_time);
-        }
+    let this = CollideData::new(space, uid);
+    for (coll_time, second_uid) in collisions {
+        let first = this.clone();
+        let second = CollideData::new(space, second_uid);
+        let collide_event = CollideEvent { first, second };
+        sulphate::enqueue_absolute(time, collide_event, coll_time);
     }
 }
 
@@ -135,6 +152,8 @@ impl sulphate::Event for CollideEvent {
             return;
         }
 
+        space.note_collided(time.now(), self.first.uid, self.second.uid);
+
         collide(space, time, matter, self.first.uid, &second_image);
         collide(space, time, matter, self.second.uid, &first_image);
     }
@@ -165,9 +184,11 @@ impl sulphate::Event for MarchEvent {
         time: &mut sulphate::EventQueue,
         _matter: &mut sulphate::EntityHeap,
     ) {
-        let body = space.get_uid(self.uid);
-        if body.is_some() && body.unwrap().march_time == time.now() {
-            space.march(time, self.uid);
+        // has a body and that body is expecting to march right now
+        let march_time = space.get_uid(self.uid)
+                              .and_then(|body| body.march_time);
+        if march_time == Some(time.now()) {
+            march(space, time, self.uid);
         }
     }
 }
@@ -175,7 +196,7 @@ impl sulphate::Event for MarchEvent {
 pub struct CollisionBody {
     pub body: Body,
     speed: units::Speed,
-    march_time: units::Time,
+    march_time: Option<units::Time>,
     radius: units::Distance,
 }
 

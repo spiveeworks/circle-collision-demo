@@ -17,16 +17,16 @@ pub use self::eyes::Image;
 // it is the medium through which entities can communicate psedunymously
 pub struct CollisionSpace {
     contents: Vec<(sulphate::EntityUId, body::CollisionBody)>,
-    _last_collision_time: units::Time,
-    _collisions: Vec<(sulphate::EntityUId, sulphate::EntityUId)>,
+    last_collision_time: units::Time,
+    collisions: Vec<(sulphate::EntityUId, sulphate::EntityUId)>,
 }
 
 impl CollisionSpace {
     pub fn new(initial_time: units::Time) -> Self {
         let contents = Vec::new();
-        let _last_collision_time = initial_time;
-        let _collisions = Vec::new();
-        CollisionSpace { contents, _last_collision_time, _collisions }
+        let last_collision_time = initial_time;
+        let collisions = Vec::new();
+        CollisionSpace { contents, last_collision_time, collisions }
     }
 
     fn find<T>(self: &Self, id: sulphate::EntityId) -> Option<usize>
@@ -74,13 +74,38 @@ impl CollisionSpace {
             .map(move |n| &mut self.contents[n].1)  // moves self - a reference
     }
 
+    // will prevent things from colliding more than once per instant
+    // at the moment this works even if they collide in different ways each
+    // time
     fn has_collided(
         self: &Self,
-        _now: units::Time,
-        _first: sulphate::EntityUId,
-        _second: sulphate::EntityUId,
+        now: units::Time,
+        first: sulphate::EntityUId,
+        second: sulphate::EntityUId,
     ) -> bool {
-        unimplemented!()
+        if now != self.last_collision_time {
+            return false;
+        }
+        for &(x, y) in &self.collisions {
+            if first == x && second == y
+            || first == y && second == x {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn note_collided(
+        self: &mut Self,
+        now: units::Time,
+        first: sulphate::EntityUId,
+        second: sulphate::EntityUId,
+    ) {
+        if now != self.last_collision_time {
+            self.collisions.clear();
+            self.last_collision_time = now;
+        }
+        self.collisions.push((first, second));
     }
 }
 
