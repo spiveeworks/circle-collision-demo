@@ -7,6 +7,7 @@ use units;
 mod body;
 mod eyes;
 
+pub use self::body::Collide;
 pub use self::body::Body;
 pub use self::eyes::Entry;
 pub use self::eyes::Eyes;
@@ -16,16 +17,16 @@ pub use self::eyes::Image;
 // it is the medium through which entities can communicate psedunymously
 pub struct CollisionSpace {
     contents: Vec<(sulphate::EntityUId, body::CollisionBody)>,
-    last_collision_time: units::Time,
-    collisions: Vec<(sulphate::EntityUId, sulphate::EntityUId)>,
+    _last_collision_time: units::Time,
+    _collisions: Vec<(sulphate::EntityUId, sulphate::EntityUId)>,
 }
 
 impl CollisionSpace {
     pub fn new(initial_time: units::Time) -> Self {
         let contents = Vec::new();
-        let last_collision_time = initial_time;
-        let collisions = Vec::new();
-        CollisionSpace { contents, last_collision_time, collisions }
+        let _last_collision_time = initial_time;
+        let _collisions = Vec::new();
+        CollisionSpace { contents, _last_collision_time, _collisions }
     }
 
     fn find<T>(self: &Self, id: sulphate::EntityId) -> Option<usize>
@@ -71,6 +72,15 @@ impl CollisionSpace {
     {
         self.find::<T>(id)
             .map(move |n| &mut self.contents[n].1)  // moves self - a reference
+    }
+
+    fn has_collided(
+        self: &Self,
+        _now: units::Time,
+        _first: sulphate::EntityUId,
+        _second: sulphate::EntityUId,
+    ) -> bool {
+        unimplemented!()
     }
 }
 

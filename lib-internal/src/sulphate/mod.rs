@@ -32,22 +32,22 @@ impl Game {
         let world = World { space, matter };
         Game { time, world }
     }
+}
 
-    pub fn enqueue_absolute<E>(
-        self: &mut Self,
-        event: E,
-        execute_time: units::Time,
-    ) where E: Event {
-        self.time.enqueue_absolute(AdaptEvent(event), execute_time);
-    }
+pub fn enqueue_absolute<E>(
+    time: &mut EventQueue,
+    event: E,
+    execute_time: units::Time,
+) where E: Event {
+    time.enqueue_absolute(AdaptEvent(event), execute_time);
+}
 
-    pub fn enqueue_relative<E>(
-        self: &mut Self,
-        event: E,
-        execute_delay: units::Duration,
-    ) where E: Event {
-        self.time.enqueue_relative(AdaptEvent(event), execute_delay);
-    }
+pub fn enqueue_relative<E>(
+    time: &mut EventQueue,
+    event: E,
+    execute_delay: units::Duration,
+) where E: Event {
+    time.enqueue_relative(AdaptEvent(event), execute_delay);
 }
 
 struct AdaptEvent<E>(E) where E: Event;

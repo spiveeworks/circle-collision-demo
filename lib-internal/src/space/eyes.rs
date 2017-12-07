@@ -114,7 +114,7 @@ impl<'a, T> Drop for Entry<'a, T>
     where T: any::Any + entities::Display
 {
     fn drop(self: &mut Self) {
-        self.space.update_physics::<T>();
+        super::body::update_physics::<T>();
         let before = self.before.as_ref();
         let val_after = self.space.image::<T>(&self.matter, self.id);
         let after = val_after.as_ref();

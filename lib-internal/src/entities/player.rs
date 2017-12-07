@@ -113,3 +113,12 @@ impl space::Eyes for Player {
     }
 }
 
+impl space::Collide for Player {
+    fn collide(
+        _this: space::Entry<Player>,
+        _other: &space::Image,
+    ) {
+        unimplemented!();
+    }
+}
+
