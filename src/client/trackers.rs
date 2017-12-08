@@ -1,11 +1,11 @@
-use std::iter;
+use std::option;
 
+use city_internal::space;
 use city_internal::sulphate;
-use city_internal::entities;
 
 struct Tracker {
     id: sulphate::EntityId,
-    image: entities::Image,
+    image: Option<space::Image>,
 }
 
 pub struct Perception {
@@ -16,21 +16,18 @@ pub struct Perception {
 impl Perception {
     pub fn apply_update(
         self: &mut Self,
-        id: sulphate::EntityId,
-        before: entities::Image,
-        after: entities::Image
+        before: Option<space::Image>,
+        after: Option<space::Image>,
     ) {
-        if self.player.id == id {
-            debug_assert!(
-                self.player.image == before,
-                "Inconsistent game world"
-            );
+        if self.player.image == before {
             self.player.image = after;
+        } else {
+            panic!("Cannot handle more than one entity!");
         }
     }
 
     pub fn new(id: sulphate::EntityId) -> Self {
-        let image = entities::Image::Nothing;
+        let image = None;
         let player = Tracker { id, image };
         Perception { player }
     }
@@ -42,9 +39,9 @@ impl Perception {
 
 
 impl<'a> IntoIterator for &'a Perception {
-    type Item = &'a entities::Image;
-    type IntoIter = iter::Once<&'a entities::Image>;
+    type Item = &'a space::Image;
+    type IntoIter = option::Iter<'a, space::Image>;
     fn into_iter(self: &'a Perception) -> Self::IntoIter {
-        iter::once(&self.player.image)
+        self.player.image.iter()
     }
 }

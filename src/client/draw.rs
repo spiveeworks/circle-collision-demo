@@ -1,24 +1,28 @@
 use city_internal::entities;
-use city_internal::physics;
+use city_internal::space;
+use city_internal::units;
 
 use piston_window as app;
 
 pub fn draw(
-    draw: &entities::Image,
-    time: physics::Time,
+    draw: &space::Image,
+    time: units::Time,
     center: app::math::Matrix2d,
     graphics: &mut app::G2d,
 ) {
+    // transform screen so that player is at the center
+    let position = draw.body.position(time);
+    let trans = center_on(center, position);
+
     use city_internal::entities::Image::*;
-    match *draw {
+    match draw.inner_image {
         Player(ref player) => {
-            player.draw(time, center, graphics);
+            player.draw(time, trans, graphics);
         },
-        Nothing => (),
     }
 }
 
-fn center_on<T>(center: T, position: physics::Position) -> T
+fn center_on<T>(center: T, position: units::Position) -> T
     where T: app::Transformed
 {
     let pos = floatify_position(position);
@@ -28,7 +32,7 @@ fn center_on<T>(center: T, position: physics::Position) -> T
 trait Draw {
     fn draw(
         self: &Self,
-        time: physics::Time,
+        time: units::Time,
         center: app::math::Matrix2d,
         graphics: &mut app::G2d,
     );
@@ -37,25 +41,21 @@ trait Draw {
 impl Draw for entities::player::Image {
     fn draw(
         self: &Self,
-        time: physics::Time,
+        time: units::Time,
         center: app::math::Matrix2d,
         graphics: &mut app::G2d,
     ) {
-        // transform screen so that player is at the center
-        let position = self.body.position(time);
-        let trans = center_on(center, position);
-
         // draw a circle at this new center
         let color = [1.0, 0.0, 0.0, 1.0];
         let radius = 10.0;
         let circle = Circle { color, radius };
-        circle.draw(time, trans, graphics);
+        circle.draw(time, center, graphics);
     }
 }
 
 
-fn floatify_position(position: physics::Position) -> [f64; 2] {
-    let origin: physics::Position = Default::default();
+fn floatify_position(position: units::Position) -> [f64; 2] {
+    let origin: units::Position = Default::default();
     let vec = position - origin;
     [vec.x.into(), vec.y.into()]
 }
@@ -69,7 +69,7 @@ struct Circle {
 impl Draw for Circle {
     fn draw(
         self: &Self,
-        _time: physics::Time,
+        _time: units::Time,
         trans: app::math::Matrix2d,
         graphics: &mut app::G2d
     ) {

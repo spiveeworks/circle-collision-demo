@@ -1,7 +1,8 @@
 use std::sync::mpsc;
 
 use city_internal::entities::player;
-use city_internal::physics::units;
+use city_internal::units;
+use city_internal::space;
 use city_internal::sulphate;
 use city_internal::sulphate::server;
 
@@ -24,12 +25,13 @@ pub struct Client {
 }
 
 fn server_init(
-    space: &mut sulphate::EntityHeap,
-    time: &mut sulphate::EventQueue
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    matter: &mut sulphate::EntityHeap,
 ) -> ClientData {
     let (player_send_upd, recv_upd) = mpsc::channel();
     let position = Default::default();
-    player::Player::new(space, time, position, player_send_upd);
+    player::Player::new(space, time, matter, position, player_send_upd);
     ClientData { recv_upd }
 }
 
@@ -63,8 +65,8 @@ impl Client {
             use city_internal::entities::player::UpdateData::*;
             match upd.what {
                 Created { .. } => unreachable!(),
-                Update { id, before, after } => {
-                    self.vision.apply_update(id, before, after);
+                Vision { before, after } => {
+                    self.vision.apply_update(before, after);
                 },
             }
         }
