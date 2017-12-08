@@ -6,19 +6,66 @@ use space;
 use sulphate;
 use units;
 
+impl space::CollisionSpace {
+    pub(super) fn new_body(
+        self: &mut Self,
+        uid: sulphate::EntityUId,
+        body: Body,
+    ) {
+        let speed = Default::default();
+        // this will force the physics to update
+        let radius = (-1).into();
+        let march_time = None;
+        let c_body = CollisionBody { body, speed, march_time, radius };
+        self.contents.push((uid, c_body));
+    }
+}
+
 pub trait Collide: entities::Display + any::Any where Self: Sized {
     // would this be faster without the reference?
     fn collide(this: space::Entry<Self>, other: &space::Image);
 }
 
-pub fn update_physics<T>() {
-    unimplemented!();
+pub fn update_physics(
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    uid: sulphate::EntityUId,
+    maybe_image: Option<&space::Image>,
+) {
+    let maybe_n = space.find_uid(uid);
+
+    // do nothing if the image is the same
+    if let (Some(n), Some(image)) = (maybe_n, maybe_image) {
+        let c_body = &space.contents[n].1;
+
+        if c_body.body == image.body
+            && c_body.radius == image.inner_image.radius()
+        {
+            return;
+        }
+    }
+
+    if let Some(n) = maybe_n {
+        space.contents.remove(n);
+    }
+
+    if let Some(image) = maybe_image {
+        let body = image.body.clone();
+        let speed = body.velocity().magnitude();
+        let radius = image.inner_image.radius();
+        let march_time = Some(time.now());
+
+        let c_body = CollisionBody { body, speed, radius, march_time };
+        space.contents.push((uid, c_body));
+
+        march(space, time, uid);
+    }
 }
 
 fn march(
     space: &mut space::CollisionSpace,
     time: &mut sulphate::EventQueue,
-    uid: sulphate::EntityUId
+    uid: sulphate::EntityUId,
 ) {
 
     let n = space.find_uid(uid);
@@ -90,17 +137,22 @@ struct CollideData {
 
 impl CollideData {
     fn new(
-        _space: &space::CollisionSpace,
-        _uid: sulphate::EntityUId,
+        space: &space::CollisionSpace,
+        uid: sulphate::EntityUId,
     ) -> Self {
-        unimplemented!();
+        let c_body = space.get_uid(uid).expect(
+            "Constructing CollideData for entity that isn't in the space"
+        );
+        let body = c_body.body.clone();
+        let radius = c_body.radius;
+        CollideData { body, radius, uid }
     }
 
     fn correct_image(
         self: &Self,
-        _image: &space::Image,
+        image: &space::Image,
     ) -> bool {
-        unimplemented!();
+        self.body == image.body && self.radius == image.inner_image.radius()
     }
 }
 
@@ -198,16 +250,6 @@ pub struct CollisionBody {
     speed: units::Speed,
     march_time: Option<units::Time>,
     radius: units::Distance,
-}
-
-impl CollisionBody {
-    pub fn set_velocity(self: &mut Self, _vel: units::Velocity) {
-        unimplemented!();
-    }
-
-    pub fn set_position(self: &mut Self, _pos: units::Position) {
-        unimplemented!();
-    }
 }
 
 enum MarchResult {
