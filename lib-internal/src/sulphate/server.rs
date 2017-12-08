@@ -5,6 +5,7 @@ use std::thread;
 use sulphate_lib::server;
 
 use entities::player;
+use space;
 use sulphate;
 use units;
 
@@ -16,16 +17,22 @@ pub enum Interruption {
     KillServer,
 }
 
-impl server::Interruption<units::Time> for Interruption {
+impl server::Interruption<units::Time, sulphate::World> for Interruption {
     fn update(
         self: Self,
-        space: &mut sulphate::EntityHeap,
         time: &mut sulphate::EventQueue,
+        world: &mut sulphate::World,
     ) -> bool {
         use self::Interruption::*;
         match self {
             PlayerUpdate { id, control } => {
-                player::Control::apply(space, time, id, control);
+                player::Control::apply(
+                    &mut world.space,
+                    time,
+                    &mut world.matter,
+                    id,
+                    control,
+                );
             },
             KillServer => return true,
         }
@@ -152,15 +159,21 @@ impl server::Clock<units::Time> for Clock {
     fn end_cycles(self: &mut Self) {}
 }
 
-type Server = server::Server<Clock, Interruption, units::Time>;
+type Server = server::Server<
+    Clock,
+    Interruption,
+    units::Time,
+    sulphate::World
+>;
 
 fn create_server_local<F, R>(
     f: F,
     upd: mpsc::Receiver<Interruption>,
 ) -> (Server, Clock, R)
     where F: FnOnce(
-                 &mut sulphate::EntityHeap,
+                 &mut space::CollisionSpace,
                  &mut sulphate::EventQueue,
+                 &mut sulphate::EntityHeap,
              ) -> R,
           R: Send + 'static,
 {
@@ -168,12 +181,15 @@ fn create_server_local<F, R>(
     let mut clock = Clock(Simple::new(initial_time));
     clock.0.start(time::Instant::now());
 
-    let mut space = sulphate::EntityHeap::new();
+    let mut space = space::CollisionSpace::new(initial_time);
     let mut time = sulphate::EventQueue::new(initial_time);
+    let mut matter = sulphate::EntityHeap::new();
 
-    let r = f(&mut space, &mut time);
+    let r = f(&mut space, &mut time, &mut matter);
 
-    let server = Server::new(space, time, upd, clock.clone());
+    let world = sulphate::World { space, matter };
+
+    let server = Server::new(time, world, upd, clock.clone());
 
     (server, clock, r)
 }
@@ -200,8 +216,9 @@ pub fn start_server<F, R>(f: F) -> (
 )
     where F: Send + 'static
            + FnOnce(
-                 &mut sulphate::EntityHeap,
+                 &mut space::CollisionSpace,
                  &mut sulphate::EventQueue,
+                 &mut sulphate::EntityHeap,
              ) -> R,
           R: Send + 'static,
 {
