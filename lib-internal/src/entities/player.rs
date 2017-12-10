@@ -125,8 +125,10 @@ impl space::Collide for Player {
         let body = this.body_mut().expect("Collided without a body");
         let velocity = body.velocity();
         let position = body.position(now);
-        let new_position = position - (velocity / velocity.magnitude());
-        *body = space::Body::new_frozen(new_position);
+        if velocity != Default::default() {
+            let new_position = position - (velocity / velocity.magnitude());
+            *body = space::Body::new_frozen(new_position);
+        }
     }
 }
 

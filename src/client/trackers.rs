@@ -1,17 +1,12 @@
-use std::option;
+use std::slice;
 
 use city_internal::space;
 use city_internal::sulphate;
 
-struct Tracker {
-    id: sulphate::EntityId,
-    image: Option<space::Image>,
-}
-
 pub struct Perception {
-    player: Tracker
+    player: sulphate::EntityId,
+    others: Vec<space::Image>,
 }
-
 
 impl Perception {
     pub fn apply_update(
@@ -19,29 +14,46 @@ impl Perception {
         before: Option<space::Image>,
         after: Option<space::Image>,
     ) {
-        if self.player.image == before {
-            self.player.image = after;
+        if let Some(before) = before {
+            let mut it = None;
+            for (i, each) in self.others.iter().enumerate() {
+                if *each == before {
+                    it = Some(i);
+                    break;
+                }
+            }
+            if it.is_none() {
+                println!("Unknown entity updated");
+                return;
+            }
+            let it = it.unwrap();
+            if let Some(after) = after {
+                self.others[it] = after;
+            } else {
+                self.others.remove(it);
+            }
         } else {
-            panic!("Cannot handle more than one entity!");
+            if let Some(after) = after {
+                self.others.push(after);
+            }
         }
     }
 
-    pub fn new(id: sulphate::EntityId) -> Self {
-        let image = None;
-        let player = Tracker { id, image };
-        Perception { player }
+    pub fn new(player: sulphate::EntityId) -> Self {
+        let others = Vec::new();
+        Perception { player, others }
     }
 
     pub fn player_id(self: &Self) -> sulphate::EntityId {
-        self.player.id
+        self.player
     }
 }
 
 
 impl<'a> IntoIterator for &'a Perception {
     type Item = &'a space::Image;
-    type IntoIter = option::Iter<'a, space::Image>;
+    type IntoIter = slice::Iter<'a, space::Image>;
     fn into_iter(self: &'a Perception) -> Self::IntoIter {
-        self.player.image.iter()
+        self.others.iter()
     }
 }
