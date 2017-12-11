@@ -15,9 +15,9 @@ pub type Coord = lib_math::Coord;
 
 pub const MOMENT_RATE: u16 = 16;
 
-pub fn moments(num: i16) -> Duration {
+pub fn moments(num: i32) -> Duration {
     let as_scalar: Scalar = num.into();
-    as_scalar / MOMENT_RATE as i32
+    as_scalar / MOMENT_RATE as i64
 }
 
 pub type Displacement = lib_math::Vector;

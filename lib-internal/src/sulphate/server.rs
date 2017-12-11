@@ -43,17 +43,16 @@ impl server::Interruption<units::Time, sulphate::World> for Interruption {
 fn duration_in_game(duration: time::Duration) -> units::Duration {
     let seconds = duration.as_secs();
     let nanos = duration.subsec_nanos();
-    let time_s: units::Duration = (seconds as i16).into();
-    let time_n_bits = ((nanos as u64) << 16) / 1_000_000_000;
-    let time_n = units::Duration::from_bits(time_n_bits as i32);
+    let time_s: units::Duration = (seconds as i32).into();
+    let time_n_num: units::Scalar = (nanos as i32).into();
+    let time_n = time_n_num / 1_000_000_000;
     time_s + time_n
 }
 
 fn duration_real_time(duration: units::Duration) -> time::Duration {
-    let time_s: i16 = duration.into();
-    let time_bits = duration.into_bits();
-    let time_n_bits = time_bits & ((1 << 16) - 1);
-    let time_n = (time_n_bits as u64 * 1_000_000_000) >> 16;
+    let time_s: i32 = duration.into();
+    let time_frac = duration - time_s.into();
+    let time_n: i32 = (time_frac * 1_000_000_000).into();
     time::Duration::new(time_s as u64, time_n as u32)
 }
 

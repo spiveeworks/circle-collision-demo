@@ -1,6 +1,6 @@
 use std::ops;
 
-use {Scalar, Coord, wide};
+use {Scalar, Coord};
 
 impl ops::AddAssign for Scalar {
     fn add_assign(self: &mut Scalar, other: Scalar) {
@@ -10,7 +10,7 @@ impl ops::AddAssign for Scalar {
 
 impl ops::AddAssign<Scalar> for Coord {
     fn add_assign(self: &mut Coord, other: Scalar) {
-        self.0 += wide(other.0);
+        self.0 += other.0;
     }
 }
 
@@ -22,7 +22,7 @@ impl ops::SubAssign for Scalar {
 
 impl ops::SubAssign<Scalar> for Coord {
     fn sub_assign(self: &mut Coord, other: Scalar) {
-        self.0 -= wide(other.0);
+        self.0 -= other.0;
     }
 }
 
@@ -38,14 +38,14 @@ impl ops::DivAssign for Scalar {
     }
 }
 
-impl ops::MulAssign<i32> for Scalar {
-    fn mul_assign(self: &mut Scalar, other: i32) {
+impl ops::MulAssign<i64> for Scalar {
+    fn mul_assign(self: &mut Scalar, other: i64) {
         self.0.bits *= other;
     }
 }
 
-impl ops::DivAssign<i32> for Scalar {
-    fn div_assign(self: &mut Scalar, other: i32) {
+impl ops::DivAssign<i64> for Scalar {
+    fn div_assign(self: &mut Scalar, other: i64) {
         self.0.bits /= other;
     }
 }

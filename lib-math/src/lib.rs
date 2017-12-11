@@ -9,16 +9,15 @@ mod vector_assigns;
 mod vector_ops;
 mod vector_misc;
 
-use fix::aliases::binary::{IFix32, IFix64};
+use fix::aliases::binary::IFix64;
 use typenum::N16;
 
-type NarrowInner = IFix32<N16>;
-type WideInner = IFix64<N16>;
+type Inner = IFix64<N16>;
 
 #[derive(Clone, Copy, Hash, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Scalar(NarrowInner);
+pub struct Scalar(Inner);
 #[derive(Clone, Copy, Hash, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Coord(WideInner);
+pub struct Coord(Inner);
 
 #[derive(Clone, Copy, Hash, Default, PartialEq, Eq, Debug)]
 pub struct Vector {
@@ -31,10 +30,3 @@ pub struct Position {
     pub y: Coord,
 }
 
-fn narrow(val: WideInner) -> NarrowInner {
-    NarrowInner::new(val.bits as i32)
-}
-
-fn wide(val: NarrowInner) -> WideInner {
-    WideInner::new(val.bits as i64)
-}
