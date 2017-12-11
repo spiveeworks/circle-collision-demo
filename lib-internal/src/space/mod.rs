@@ -64,6 +64,7 @@ impl CollisionSpace {
             .map(|n| &self.contents[n].1)
     }
 
+/*
     fn get_mut<T>(
         self: &mut Self,
         id: sulphate::EntityId,
@@ -73,6 +74,7 @@ impl CollisionSpace {
         self.find::<T>(id)
             .map(move |n| &mut self.contents[n].1)  // moves self - a reference
     }
+*/
 
     // will prevent things from colliding more than once per instant
     // at the moment this works even if they collide in different ways each

@@ -6,24 +6,9 @@ use space;
 use sulphate;
 use units;
 
-impl space::CollisionSpace {
-    pub(super) fn new_body(
-        self: &mut Self,
-        uid: sulphate::EntityUId,
-        body: Body,
-    ) {
-        let speed = Default::default();
-        // this will force the physics to update
-        let radius = (-1).into();
-        let march_time = None;
-        let c_body = CollisionBody { body, speed, march_time, radius };
-        self.contents.push((uid, c_body));
-    }
-}
-
 pub trait Collide: entities::Display + any::Any where Self: Sized {
     // would this be faster without the reference?
-    fn collide(this: space::Entry<Self>, other: &space::Image);
+    fn collide(this: space::Entry<Self>, other: space::Image);
 }
 
 pub fn update_physics(
@@ -67,7 +52,6 @@ fn march(
     time: &mut sulphate::EventQueue,
     uid: sulphate::EntityUId,
 ) {
-
     let n = space.find_uid(uid);
     if n.is_none() {
         return;
@@ -128,7 +112,7 @@ fn apply_march_data(
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 struct CollideData {
     body: space::Body,
     radius: units::Distance,
@@ -140,20 +124,43 @@ impl CollideData {
         space: &space::CollisionSpace,
         uid: sulphate::EntityUId,
     ) -> Self {
-        let c_body = space.get_uid(uid).expect(
+        CollideData::try_new(space, uid).expect(
             "Constructing CollideData for entity that isn't in the space"
-        );
-        let body = c_body.body.clone();
-        let radius = c_body.radius;
-        CollideData { body, radius, uid }
+        )
     }
 
-    fn correct_image(
-        self: &Self,
-        image: &space::Image,
-    ) -> bool {
-        self.body == image.body && self.radius == image.inner_image.radius()
+    fn try_new(
+        space: &space::CollisionSpace,
+        uid: sulphate::EntityUId,
+    ) -> Option<Self> {
+        space.get_uid(uid).map(|c_body| {
+            let body = c_body.body.clone();
+            let radius = c_body.radius;
+            CollideData { body, radius, uid }
+        })
     }
+
+    /*
+    /// updates the radius field to match the current state of the entity
+    /// useful when followed by an equality comparison
+    /// (if the entity is being changed at that instant...)
+    fn update_radius(
+        self: &mut Self,
+        matter: &sulphate::EntityHeap,
+    ) {
+        if self.uid.ty == any::TypeId::of::<entities::Player> {
+            let img = matter.get::<entities::Player>(uid.id)
+                            .and_then(entities::Display::image);
+            if let Some(image) = img {
+                self.radius = img.radius;
+            } else {
+                false
+            }
+        } else {
+            panic!("Unknown entity trying to collide");
+        }
+    }
+    */
 }
 
 struct CollideEvent {
@@ -164,20 +171,6 @@ struct CollideEvent {
     // enqueue_time: units::Time,  // the initiator should have the same time
 }
 
-// making this here because I can only add so many features at once
-// and making a clear downcasting system doesn't make that list
-fn image(
-    space: &space::CollisionSpace,
-    matter: &sulphate::EntityHeap,
-    uid: sulphate::EntityUId,
-) -> Option<space::Image> {
-    if uid.ty == any::TypeId::of::<entities::Player>() {
-        space.image::<entities::Player>(matter, uid.id)
-    } else {
-        panic!("Unknown entity in collide event");
-    }
-}
-
 impl sulphate::Event for CollideEvent {
     fn invoke(
         self: Self,
@@ -185,18 +178,11 @@ impl sulphate::Event for CollideEvent {
         time: &mut sulphate::EventQueue,
         matter: &mut sulphate::EntityHeap,
     ) {
-        let maybe_first_image = image(space, matter, self.first.uid);
-        let maybe_second_image = image(space, matter, self.second.uid);
+        let first_now = CollideData::try_new(space, self.first.uid);
+        let second_now = CollideData::try_new(space, self.second.uid);
 
-        if maybe_first_image.is_none() || maybe_second_image.is_none() {
-            return;
-        }
-
-        let first_image = maybe_first_image.unwrap();
-        let second_image = maybe_second_image.unwrap();
-
-        if !self.first.correct_image(&first_image)
-        || !self.second.correct_image(&second_image) {
+        if first_now.as_ref() != Some(&self.first)
+        || second_now.as_ref() != Some(&self.second) {
             return;
         }
 
@@ -206,8 +192,8 @@ impl sulphate::Event for CollideEvent {
 
         space.note_collided(time.now(), self.first.uid, self.second.uid);
 
-        collide(space, time, matter, self.first.uid, &second_image);
-        collide(space, time, matter, self.second.uid, &first_image);
+        collide(space, time, matter, self.first.uid, self.second.uid);
+        collide(space, time, matter, self.second.uid, self.first.uid);
     }
 }
 
@@ -215,11 +201,17 @@ fn collide(
     space: &mut space::CollisionSpace,
     time: &mut sulphate::EventQueue,
     matter: &mut sulphate::EntityHeap,
-    uid: sulphate::EntityUId,
-    with: &space::Image,
+    this_uid: sulphate::EntityUId,
+    with_uid: sulphate::EntityUId,
 ) {
-    if uid.ty == any::TypeId::of::<entities::Player>() {
-        let ent = space.entry::<entities::Player>(time, matter, uid.id);
+    let inner_image = entities::image_of(matter, with_uid).expect(
+        "Collided with body of nonexistent entity"
+    );
+    let body = space.get_uid(with_uid).unwrap().body.clone();
+    let with = space::Image { body, inner_image };
+
+    if this_uid.ty == any::TypeId::of::<entities::Player>() {
+        let ent = space.entry::<entities::Player>(time, matter, this_uid.id);
         Collide::collide(ent, with);
     }
 }
@@ -236,6 +228,7 @@ impl sulphate::Event for MarchEvent {
         time: &mut sulphate::EventQueue,
         _matter: &mut sulphate::EntityHeap,
     ) {
+        println!("March");
         // has a body and that body is expecting to march right now
         let march_time = space.get_uid(self.uid)
                               .and_then(|body| body.march_time);

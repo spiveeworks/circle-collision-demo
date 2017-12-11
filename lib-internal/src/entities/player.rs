@@ -56,7 +56,7 @@ impl Control {
                 let mut this: space::Entry<Player> =
                     space.entry(time, matter, id);
                 let now = this.now();
-                if let Some(body) = this.body_mut() {
+                if let Some(body) = this.body.as_mut() {
                     body.bounce(velocity, now);
                 } else {
                     println!("Player has no location!");
@@ -87,7 +87,7 @@ impl Player {
         let id = matter.add(player);
         let mut this = space.entry::<Player>(time, matter, id);
 
-        this.set_body(space::Body::new_frozen(position));
+        this.body = Some(space::Body::new_frozen(position));
 
         let when = this.now();
         let what = UpdateData::Created { id, position };
@@ -118,11 +118,11 @@ impl space::Eyes for Player {
 impl space::Collide for Player {
     fn collide(
         mut this: space::Entry<Player>,
-        _other: &space::Image,
+        _other: space::Image,
     ) {
         let now = this.now();
 
-        let body = this.body_mut().expect("Collided without a body");
+        let body = this.body.as_mut().expect("Collided without a body");
         let velocity = body.velocity();
         let position = body.position(now);
         if velocity != Default::default() {
