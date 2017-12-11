@@ -16,6 +16,9 @@ impl Scalar {
     pub fn rough_sqrt(self: Scalar) -> Scalar {
         // this is x * 2 ^ 16
         let bits = self.0.bits;
+        // debug assert since newton's method will work... strangely
+        // although we just integer overflow, which is less strange
+        debug_assert!(bits >= 0, "Square root of negative number");
         // this is root_x * 2 ^ 8
         let result = rough_sqrt(bits as u32, 8, 6);
         Scalar::from_bits((result as i64) << 8)

@@ -100,6 +100,10 @@ impl Client {
         let input = user_input::Input::new();
 
         start_other(&send_upd, &recv_other);
+        ::std::thread::spawn(move || {
+            for _ in recv_other {
+            }
+        });
 
         Client { vision, clock, input, send_upd, recv_upd }
     }
