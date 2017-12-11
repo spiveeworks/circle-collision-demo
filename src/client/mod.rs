@@ -1,7 +1,8 @@
 use std::sync::mpsc;
 
 use city_internal::entities::player;
-use city_internal::physics::units;
+use city_internal::units;
+use city_internal::space;
 use city_internal::sulphate;
 use city_internal::sulphate::server;
 
@@ -13,6 +14,7 @@ mod user_input;
 
 struct ClientData {
     recv_upd: mpsc::Receiver<player::Update>,
+    recv_other: mpsc::Receiver<player::Update>,
 }
 
 pub struct Client {
@@ -24,18 +26,65 @@ pub struct Client {
 }
 
 fn server_init(
-    space: &mut sulphate::EntityHeap,
-    time: &mut sulphate::EventQueue
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    matter: &mut sulphate::EntityHeap,
 ) -> ClientData {
     let (player_send_upd, recv_upd) = mpsc::channel();
-    let position = Default::default();
-    player::Player::new(space, time, position, player_send_upd);
-    ClientData { recv_upd }
+    {
+        let position = Default::default();
+        player::Player::new(space, time, matter, position, player_send_upd);
+    }
+
+    let (other_send_upd, recv_other) = mpsc::channel();
+    {
+        let displacement = units::Displacement { x: 200.into(), y: 0.into() };
+        let position = units::Position::default() + displacement;
+        player::Player::new(space, time, matter, position, other_send_upd);
+    }
+
+    ClientData { recv_upd, recv_other }
 }
 
 pub fn start_game() -> Client {
     let (send_upd, clock, client_data) = server::start_server(server_init);
     Client::new(send_upd, clock, client_data)
+}
+
+fn start_other(
+    send_upd: &mpsc::Sender<server::Interruption>,
+    recv: &mpsc::Receiver<player::Update>,
+) {
+    let id = recv_id(&recv, "Other");
+    let velocity = units::Velocity { x: (-50).into(), y: 0.into() };
+    send_velocity(send_upd, id, velocity, "Other");
+}
+
+fn recv_id(
+    recv: &mpsc::Receiver<player::Update>,
+    name: &str,
+) -> sulphate::EntityId {
+    match recv.recv() {
+        Ok(upd) => match upd.what {
+            player::UpdateData::Created { id, .. } => id,
+            _ => panic!("{} didn't send Created update first", name),
+        },
+        Err(_) => panic!("{} gave bad Receiver"),
+    }
+}
+
+fn send_velocity(
+    send_upd: &mpsc::Sender<server::Interruption>,
+    id: sulphate::EntityId,
+    velocity: units::Velocity,
+    name: &str,
+) {
+    let control = player::Control::Move { velocity };
+    let interruption = server::Interruption::PlayerUpdate { id, control };
+    let result = send_upd.send(interruption);
+    if result.is_err() {
+        panic!("{} entity disconnected", name);
+    }
 }
 
 impl Client {
@@ -44,16 +93,17 @@ impl Client {
         clock: server::Clock,
         data: ClientData,
     ) -> Client {
-        let id = match data.recv_upd.recv() {
-            Ok(upd) => match upd.what {
-                player::UpdateData::Created { id, .. } => id,
-                _ => panic!("Player didn't send Created update first"),
-            },
-            Err(_) => panic!("Player gave bad Receiver"),
-        };
+        let ClientData { recv_upd, recv_other } = data;
+
+        let id = recv_id(&recv_upd, "Player");
         let vision = trackers::Perception::new(id);
         let input = user_input::Input::new();
-        let ClientData { recv_upd } = data;
+
+        start_other(&send_upd, &recv_other);
+        ::std::thread::spawn(move || {
+            for _ in recv_other {
+            }
+        });
 
         Client { vision, clock, input, send_upd, recv_upd }
     }
@@ -63,8 +113,8 @@ impl Client {
             use city_internal::entities::player::UpdateData::*;
             match upd.what {
                 Created { .. } => unreachable!(),
-                Update { id, before, after } => {
-                    self.vision.apply_update(id, before, after);
+                Vision { before, after } => {
+                    self.vision.apply_update(before, after);
                 },
             }
         }
@@ -97,9 +147,7 @@ impl Client {
         }
 
         let id = self.vision.player_id();
-        let control = player::Control::Move { velocity };
-        let interruption = server::Interruption::PlayerUpdate { id, control };
-        self.send_upd.send(interruption).expect("Player entity disconnected");
+        send_velocity(&self.send_upd, id, velocity, "Player");
     }
 
     pub fn on_mouse_move(&mut self, _mouse: [f64; 2]) {

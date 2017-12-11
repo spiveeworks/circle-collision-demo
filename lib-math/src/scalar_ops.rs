@@ -3,7 +3,7 @@ use std::ops;
 use fix::aliases::binary::IFix64;
 use typenum::N32;
 
-use {Scalar, Coord, narrow, wide};
+use {Scalar, Coord};
 
 impl ops::Neg for Scalar {
     type Output = Self;
@@ -55,24 +55,24 @@ impl ops::Sub<Scalar> for Coord {
 impl ops::Sub for Coord {
     type Output = Scalar;
     fn sub(self: Coord, other: Coord) -> Scalar {
-        Scalar(narrow(self.0 - other.0))
+        Scalar(self.0 - other.0)
     }
 }
 
 impl ops::Mul for Scalar {
     type Output = Scalar;
     fn mul(self: Scalar, other: Scalar) -> Scalar {
-        let prod = wide(self.0) * wide(other.0);
-        Scalar(narrow(prod.convert()))
+        let prod = self.0 * other.0;
+        Scalar(prod.convert())
     }
 }
 
 impl ops::Div for Scalar {
     type Output = Scalar;
     fn div(self: Scalar, other: Scalar) -> Scalar {
-        let nume: IFix64<N32> = wide(self.0).convert();
-        let quot = nume / wide(other.0);
-        Scalar(narrow(quot))
+        let nume: IFix64<N32> = self.0.convert();
+        let quot = nume / other.0;
+        Scalar(quot)
     }
 }
 
@@ -84,25 +84,25 @@ impl ops::Rem for Scalar {
     }
 }
 
-impl ops::Mul<i32> for Scalar {
+impl ops::Mul<i64> for Scalar {
     type Output = Scalar;
-    fn mul(mut self: Scalar, other: i32) -> Scalar {
+    fn mul(mut self: Scalar, other: i64) -> Scalar {
         self *= other;
         self
     }
 }
 
-impl ops::Mul<Scalar> for i32 {
+impl ops::Mul<Scalar> for i64 {
     type Output = Scalar;
-    fn mul(self: i32, mut other: Scalar) -> Scalar {
+    fn mul(self: i64, mut other: Scalar) -> Scalar {
         other *= self;
         other
     }
 }
 
-impl ops::Div<i32> for Scalar {
+impl ops::Div<i64> for Scalar {
     type Output = Scalar;
-    fn div(mut self: Scalar, other: i32) -> Scalar {
+    fn div(mut self: Scalar, other: i64) -> Scalar {
         self /= other;
         self
     }
