@@ -1,17 +1,108 @@
 use std::fmt;
 use std::cmp;
 
-use super::{Scalar, Coord, NarrowInner};
+use super::{Scalar, Coord, Inner};
 
-impl From<i16> for Scalar {
-    fn from(val: i16) -> Scalar {
-        Scalar(NarrowInner::new((val as i32) << 16))
+
+impl Scalar {
+    pub fn from_bits(bits: i64) -> Scalar {
+        Scalar(Inner::new(bits))
+    }
+
+    pub fn into_bits(self: Scalar) -> i64 {
+        self.0.bits
+    }
+
+    pub fn rough_sqrt(self: Scalar) -> Scalar {
+        // this is x * 2 ^ 16
+        let bits = self.0.bits;
+        // debug assert since newton's method will work... strangely
+        // although we just integer overflow, which is less strange
+        debug_assert!(bits >= 0, "Square root of negative number");
+        // this is root_x * 2 ^ 8
+        let result = rough_sqrt(bits as u32, 8, 6);
+        Scalar::from_bits((result as i64) << 8)
+    }
+
+    pub fn sqrt(self: Scalar) -> Scalar {
+        self.rough_sqrt()
+    }
+
+    pub fn squared(self: Scalar) -> Scalar {
+        self * self
     }
 }
 
-impl From<Scalar> for i16 {
-    fn from(val: Scalar) -> i16 {
-        (val.0.bits >> 16) as i16
+// note there is a nice approximation algorithm at
+// https://users.rust-lang.org/t/integer-square-root-algorithm/13529/5
+// but this is fine for now
+fn rough_sqrt(val: u32, magnitude: i8, iterations: u8) -> u32 {
+    let mut result = val >> ((magnitude + 16) / 2);
+    // this is similar to an epsilon value, but it will only last
+    // the specified number of iterations before it becomes zero
+    // meaning it also gives sqrt(0) = 0
+    result += 1 << (iterations - 1);
+    for _ in 0 .. iterations {
+        result = val / 2 / result + result / 2;
+    }
+    result
+}
+
+#[cfg(test)]
+mod test_rough_sqrt {
+    #[test]
+    fn test_sqrts() {
+        for i in 0..5000 {
+            test_sqrt_err(i);
+        }
+    }
+
+    fn test_sqrt_err(num: i32) {
+        let val: ::Scalar = num.into();
+
+        let root = val.rough_sqrt();
+        let approx = root.squared();
+
+        // very generous test
+        assert!(
+            val - 1.into() < approx && approx <= val,
+            "Scalar::sqrt({}) is horrible, [{}^2 = {}]", val, root, approx
+        );
+    }
+
+    fn test_small_sqrt(num: i64) {
+        let val = ::Scalar::from_bits(num);
+
+        let root = val.rough_sqrt();
+        let approx = root.squared();
+
+        // very generous test
+        assert!(
+             (val - approx).squared() < 1,
+            "Scalar::sqrt({}) is horrible, [{}^2 = {}]", val, root, approx
+        );
+    }
+
+    #[test]
+    fn test_small_sqrts_exhaustive() {
+        println!("Testing");
+        let max_val: ::Scalar = 8.into();
+        for val in 0..max_val.into_bits() {
+            test_small_sqrt(val);
+        }
+    }
+}
+
+
+impl From<i32> for Scalar {
+    fn from(val: i32) -> Scalar {
+        Scalar(Inner::new((val as i64) << 16))
+    }
+}
+
+impl From<Scalar> for i32 {
+    fn from(val: Scalar) -> i32 {
+        (val.0.bits >> 16) as i32
     }
 }
 
@@ -31,29 +122,29 @@ impl From<Scalar> for f64 {
 }
 
 
-impl PartialEq<i16> for Scalar {
-    fn eq(self: &Scalar, other: &i16) -> bool {
+impl PartialEq<i32> for Scalar {
+    fn eq(self: &Scalar, other: &i32) -> bool {
         let scalar_other: Scalar = (*other).into();
         *self == scalar_other
     }
 }
 
-impl PartialEq<Scalar> for i16 {
-    fn eq(self: &i16, other: &Scalar) -> bool {
+impl PartialEq<Scalar> for i32 {
+    fn eq(self: &i32, other: &Scalar) -> bool {
         let scalar_self: Scalar = (*self).into();
         scalar_self == *other
     }
 }
 
-impl PartialOrd<i16> for Scalar {
-    fn partial_cmp(self: &Scalar, other: &i16) -> Option<cmp::Ordering> {
+impl PartialOrd<i32> for Scalar {
+    fn partial_cmp(self: &Scalar, other: &i32) -> Option<cmp::Ordering> {
         let scalar_other: Scalar = (*other).into();
         PartialOrd::partial_cmp(self, &scalar_other)
     }
 }
 
-impl PartialOrd<Scalar> for i16 {
-    fn partial_cmp(self: &i16, other: &Scalar) -> Option<cmp::Ordering> {
+impl PartialOrd<Scalar> for i32 {
+    fn partial_cmp(self: &i32, other: &Scalar) -> Option<cmp::Ordering> {
         let scalar_self: Scalar = (*self).into();
         PartialOrd::partial_cmp(&scalar_self, other)
     }

@@ -37,8 +37,8 @@ impl ops::MulAssign<Scalar> for Vector {
     }
 }
 
-impl ops::MulAssign<i32> for Vector {
-    fn mul_assign(self: &mut Vector, other: i32) {
+impl ops::MulAssign<i64> for Vector {
+    fn mul_assign(self: &mut Vector, other: i64) {
         self.x *= other;
         self.y *= other;
     }
@@ -51,8 +51,8 @@ impl ops::DivAssign<Scalar> for Vector {
     }
 }
 
-impl ops::DivAssign<i32> for Vector {
-    fn div_assign(self: &mut Vector, other: i32) {
+impl ops::DivAssign<i64> for Vector {
+    fn div_assign(self: &mut Vector, other: i64) {
         self.x /= other;
         self.y /= other;
     }

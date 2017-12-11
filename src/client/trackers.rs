@@ -1,50 +1,59 @@
-use std::iter;
+use std::slice;
 
+use city_internal::space;
 use city_internal::sulphate;
-use city_internal::entities;
-
-struct Tracker {
-    id: sulphate::EntityId,
-    image: entities::Image,
-}
 
 pub struct Perception {
-    player: Tracker
+    player: sulphate::EntityId,
+    others: Vec<space::Image>,
 }
-
 
 impl Perception {
     pub fn apply_update(
         self: &mut Self,
-        id: sulphate::EntityId,
-        before: entities::Image,
-        after: entities::Image
+        before: Option<space::Image>,
+        after: Option<space::Image>,
     ) {
-        if self.player.id == id {
-            debug_assert!(
-                self.player.image == before,
-                "Inconsistent game world"
-            );
-            self.player.image = after;
+        if let Some(before) = before {
+            let mut it = None;
+            for (i, each) in self.others.iter().enumerate() {
+                if *each == before {
+                    it = Some(i);
+                    break;
+                }
+            }
+            if it.is_none() {
+                println!("Unknown entity updated");
+                return;
+            }
+            let it = it.unwrap();
+            if let Some(after) = after {
+                self.others[it] = after;
+            } else {
+                self.others.remove(it);
+            }
+        } else {
+            if let Some(after) = after {
+                self.others.push(after);
+            }
         }
     }
 
-    pub fn new(id: sulphate::EntityId) -> Self {
-        let image = entities::Image::Nothing;
-        let player = Tracker { id, image };
-        Perception { player }
+    pub fn new(player: sulphate::EntityId) -> Self {
+        let others = Vec::new();
+        Perception { player, others }
     }
 
     pub fn player_id(self: &Self) -> sulphate::EntityId {
-        self.player.id
+        self.player
     }
 }
 
 
 impl<'a> IntoIterator for &'a Perception {
-    type Item = &'a entities::Image;
-    type IntoIter = iter::Once<&'a entities::Image>;
+    type Item = &'a space::Image;
+    type IntoIter = slice::Iter<'a, space::Image>;
     fn into_iter(self: &'a Perception) -> Self::IntoIter {
-        iter::once(&self.player.image)
+        self.others.iter()
     }
 }

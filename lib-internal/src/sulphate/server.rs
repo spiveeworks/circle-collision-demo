@@ -5,8 +5,9 @@ use std::thread;
 use sulphate_lib::server;
 
 use entities::player;
-use physics::units;
+use space;
 use sulphate;
+use units;
 
 pub enum Interruption {
     PlayerUpdate {
@@ -16,16 +17,22 @@ pub enum Interruption {
     KillServer,
 }
 
-impl server::Interruption<units::Time> for Interruption {
+impl server::Interruption<units::Time, sulphate::World> for Interruption {
     fn update(
         self: Self,
-        space: &mut sulphate::EntityHeap,
         time: &mut sulphate::EventQueue,
+        world: &mut sulphate::World,
     ) -> bool {
         use self::Interruption::*;
         match self {
             PlayerUpdate { id, control } => {
-                player::Control::apply(space, time, id, control);
+                player::Control::apply(
+                    &mut world.space,
+                    time,
+                    &mut world.matter,
+                    id,
+                    control,
+                );
             },
             KillServer => return true,
         }
@@ -36,17 +43,16 @@ impl server::Interruption<units::Time> for Interruption {
 fn duration_in_game(duration: time::Duration) -> units::Duration {
     let seconds = duration.as_secs();
     let nanos = duration.subsec_nanos();
-    let time_s: units::Duration = (seconds as i16).into();
-    let time_n_bits = ((nanos as u64) << 16) / 1_000_000_000;
-    let time_n = units::Duration::from_bits(time_n_bits as i32);
+    let time_s: units::Duration = (seconds as i32).into();
+    let time_n_num: units::Scalar = (nanos as i32).into();
+    let time_n = time_n_num / 1_000_000_000;
     time_s + time_n
 }
 
 fn duration_real_time(duration: units::Duration) -> time::Duration {
-    let time_s: i16 = duration.into();
-    let time_bits = duration.into_bits();
-    let time_n_bits = time_bits & ((1 << 16) - 1);
-    let time_n = (time_n_bits as u64 * 1_000_000_000) >> 16;
+    let time_s: i32 = duration.into();
+    let time_frac = duration - time_s.into();
+    let time_n: i32 = (time_frac * 1_000_000_000).into();
     time::Duration::new(time_s as u64, time_n as u32)
 }
 
@@ -152,15 +158,21 @@ impl server::Clock<units::Time> for Clock {
     fn end_cycles(self: &mut Self) {}
 }
 
-type Server = server::Server<Clock, Interruption, units::Time>;
+type Server = server::Server<
+    Clock,
+    Interruption,
+    units::Time,
+    sulphate::World
+>;
 
 fn create_server_local<F, R>(
     f: F,
     upd: mpsc::Receiver<Interruption>,
 ) -> (Server, Clock, R)
     where F: FnOnce(
-                 &mut sulphate::EntityHeap,
+                 &mut space::CollisionSpace,
                  &mut sulphate::EventQueue,
+                 &mut sulphate::EntityHeap,
              ) -> R,
           R: Send + 'static,
 {
@@ -168,12 +180,15 @@ fn create_server_local<F, R>(
     let mut clock = Clock(Simple::new(initial_time));
     clock.0.start(time::Instant::now());
 
-    let mut space = sulphate::EntityHeap::new();
+    let mut space = space::CollisionSpace::new(initial_time);
     let mut time = sulphate::EventQueue::new(initial_time);
+    let mut matter = sulphate::EntityHeap::new();
 
-    let r = f(&mut space, &mut time);
+    let r = f(&mut space, &mut time, &mut matter);
 
-    let server = Server::new(space, time, upd, clock.clone());
+    let world = sulphate::World { space, matter };
+
+    let server = Server::new(time, world, upd, clock.clone());
 
     (server, clock, r)
 }
@@ -200,8 +215,9 @@ pub fn start_server<F, R>(f: F) -> (
 )
     where F: Send + 'static
            + FnOnce(
-                 &mut sulphate::EntityHeap,
+                 &mut space::CollisionSpace,
                  &mut sulphate::EventQueue,
+                 &mut sulphate::EntityHeap,
              ) -> R,
           R: Send + 'static,
 {
