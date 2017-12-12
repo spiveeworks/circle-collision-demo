@@ -64,20 +64,29 @@ fn march(
     apply_march_data(space, time, uid, n, march, collisions);
 }
 
-fn apply_march_data(
+fn apply_march(
     space: &mut space::CollisionSpace,
     time: &mut sulphate::EventQueue,
     uid: sulphate::EntityUId,
     n: usize,
     march: Option<units::Time>,
-    collisions: Vec<(units::Time, sulphate::EntityUId)>,
+    collisions: Vec<(units::Time, units::Time, sulphate::EntityUId)>,
 ) {
     if let Some(march_time) = march {
         let march_event = MarchEvent { uid };
         sulphate::enqueue_absolute(time, march_event, march_time);
     }
     space.contents[n].1.march_time = march;
+}
 
+fn apply_collisions(
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    uid: sulphate::EntityUId,
+    n: usize,
+    march: Option<units::Time>,
+    collisions: Vec<(units::Time, units::Time, sulphate::EntityUId)>,
+) {
     let this = CollideData::new(space, uid);
     for (coll_time, second_uid) in collisions {
         let first = this.clone();
@@ -87,35 +96,62 @@ fn apply_march_data(
     }
 }
 
+fn apply_stable_contact(
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    uid: sulphate::EntityUId,
+    n: usize,
+    collisions: Vec<(sulphate::EntityUId, bool)>,
+) {
+}
+
 enum MarchResult {
     /// Objects far from eachother and cannot collide with eachother until
     /// at least this time
     March(units::Time),
-    /// Objects close to eachother and will actually collide at this time
-    Collide(units::Time),
-    /// Objects close to eachother but will not collide
+    /// Objects close to eachother and collide over this time
+    Collide(units::Time, units::Time),
+    /// Objects touching, and release at this time
+    Release(units::Time),
+    /// Objects close but do not touch
     Miss,
-    /// Objects have the same velocity so cannot collide
-    Stable,
+    /// Objects have the same velocity and are touching
+    StableContact,
+    /// Objects have the same velocity and are not touching
+    StableMiss,
 }
 
 fn get_march_data(
     space: &space::CollisionSpace,
     time_now: units::Time,
     n: usize,
-) -> (Option<units::Time>, Vec<(units::Time, sulphate::EntityUId)>) {
+) -> (
+    Option<units::Time>,
+    Vec<(units::Time, units::Time, sulphate::EntityUId)>,
+    Vec<(sulphate::EntityUId, bool)>,
+) {
     let (others, rest) = space.contents.split_at(n);
     let (_, ref this) = rest[0];
 
     let mut march = None;
     let mut collisions = Vec::with_capacity(others.len());
+    let mut stable = Vec::with_capacity(others.len());
 
     for &(other_uid, ref other) in others {
         use self::MarchResult::*;
         match march_result(this, other, time_now) {
-            Miss | Stable => (),
-            Collide(t) => {
-                collisions.push((t, other_uid));
+            Miss => (),
+            StableMiss => if note_stable {
+                stable.push((other_uid, false));
+            },
+            Collide(t, u) => {
+                collisions.push((t, u, other_uid));
+            },
+            Release(u) => {
+                collisions.push((time_now, u, other_uid));
+            },
+            StableContact => {
+                stable.push((other_uid, true));
             },
             March(t) => {
                 march = Some(march.map_or(t, |u| cmp::min(t, u)));
@@ -172,55 +208,59 @@ fn march_result(
     }
 }
 
-// gives the collision time,
-// gives None if they are pointed away from eachother,
-//     or they will miss eachother
-//     or they are already inside eachother
-fn collide_time(
+enum CollideResult {
+    /// The two trajectories get closer than their radii between these times.
+    /// None indicates an infinite duration
+    Collision(Option<units::Time>, Option<units::Time>),
+    /// The two trajectories never get closer than their radii
+    Miss,
+}
+
+fn collision_linear(
     one: &CollisionBody,
     other: &CollisionBody,
-    time: units::Time
-) -> Option<units::Time> {
+) -> CollideResult {
     // we will work with a relative reference frame
+    // we use max so that swapping the arguments doesnt change the result
+    let time = cmp::max(one.body.last_time, other.body.last_time);
     let rel_pos = one.body.position(time) - other.body.position(time);
     let rel_vel = one.body.velocity() - other.body.velocity();
 
-    // they miss if their velocity and displacement are in the same direction
-    // A -p-> B -v->
+    // this is the time at which the bodies will be closest
+    // it follows from assuming (p + vt) is orthogonal to v
     let inner = units::Vector::inner(rel_pos, rel_vel);
-    if inner < 0 {
-        // this is the time at which the bodies will be closest
-        // it follows from assuming (p + vt) is orthogonal to v
-        let near_time: units::Duration = - inner / rel_vel.squared();
+    let near_time: units::Duration = - inner / rel_vel.squared();
 
-        // they collide when there's no room between their circumferences
-        let coll_dist: units::Distance = one.radius + other.radius;
-
-        // they also miss if they never get close enough (by definition)
-        let near: units::Displacement = rel_pos + rel_vel * near_time; 
-        if coll_dist.squared() < near.squared() {
-            None
-        } else {
-            // this comes from completing the square in (p + vt)^2 = d^2
-            let diff_squared = (coll_dist.squared() - rel_pos.squared())
-                             / rel_vel.squared()
-                             + near_time.squared();
-            let diff: units::Duration = units::Scalar::sqrt(diff_squared);
-            let coll_time = near_time - diff;
-
-            // we also say they miss if they are already inside eachother
-            // TODO we need to be able to coordinate release of contact as well
-            if coll_time < 0 {
-                None
-            } else {
-                Some(time + coll_time)
-            }
-        }
+    // they collide when there's no room between their boundaries
+    let coll_dist: units::Distance = one.radius + other.radius;
+    let near: units::Displacement = rel_pos + rel_vel * near_time; 
+    if coll_dist.squared() < near.squared() {
+        CollideResult::Miss
     } else {
-        None
+        // this comes from completing the square in (p + vt)^2 = d^2
+        let diff_squared = (coll_dist.squared() - rel_pos.squared())
+                         / rel_vel.squared()
+                         + near_time.squared();
+        let diff: units::Duration = units::Scalar::sqrt(diff_squared);
+        let contact_time = near_time - diff;
+        let release_time = near_time + diff;
+
+        CollideResult::Collision(Some(contact_time), Some(release_time))
     }
 }
 
+fn collision_stationary(
+    one: &CollisionBody,
+    other: &CollisionBody,
+) -> CollideResult {
+    let coll_dist = one.radius + other.radius;
+    let centre_disp = one.body.last_position - other.body.last_position;
+    if coll_dist.squared() < centre_disp.squared() {
+        CollideResult::Miss
+    } else {
+        CollideResult::Collision(None, None)
+    }
+}
 
 #[derive(Clone, PartialEq)]
 struct CollideData {
