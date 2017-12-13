@@ -10,13 +10,29 @@ pub trait Collide: entities::Display + any::Any where Self: Sized {
     fn collide(this: space::Entry<Self>, other: space::Image);
 }
 
-pub(super) fn update_physics(
+/* this is quite complicated
+ *
+ * if an entity hasn't changed position/velocity/radius, then nothing happens
+ *
+ * if it changes velocity but neither position nor radius, then a special check
+ * occurs over the next instant to see which entities it is currently in
+ * contact with
+ * this way when you collide with an entity you remain in contact with it,
+ * even if the calculations are inaccurate.
+ *
+ * if it changes either position or radius, then it needs to restart the
+ * ray-march process, checking entities with which it is currently in contact,
+ * and checking if it is in contact with stationary objects, whereas both of
+ * these things are normally implicit/ignored
+ */
+pub fn update_physics(
     space: &mut space::CollisionSpace,
     time: &mut sulphate::EventQueue,
     uid: sulphate::EntityUId,
     maybe_image: Option<&space::Image>,
 ) {
     let maybe_n = space.find_uid(uid);
+    let mut bounce = false;
 
     // do nothing if the image is the same
     if let (Some(n), Some(image)) = (maybe_n, maybe_image) {
@@ -26,6 +42,13 @@ pub(super) fn update_physics(
             && c_body.radius == image.inner_image.radius()
         {
             return;
+        }
+
+        let time_now = time.now();
+        if c_body.body.position(time_now) == image.body.position(time_now)
+            && c_body.radius == image.inner_image.radius()
+        {
+            bounce = true;
         }
     }
 
@@ -40,13 +63,54 @@ pub(super) fn update_physics(
         let body = image.body.clone();
         let speed = body.velocity().magnitude();
         let radius = image.inner_image.radius();
-        let march_time = None;
+        let physics_state = {
+            if bounce {
+                PhysicsState::Bounce
+            } else {
+                PhysicsState::NoMarch
+            }
+        };
 
-        let c_body = CollisionBody { body, speed, radius, march_time };
+        let c_body = CollisionBody { body, speed, radius, physics_state };
         space.contents.push((uid, c_body));
 
-        march(space, time, uid);
+        if bounce {
+            march(space, time, uid);
+
+            let bounce_event = BounceEvent { };
+            sulphate::enqueue_relative(time, bounce_event, units::instants(1));
+        } else {
+            let contact = get_contacts(space, uid);
+            march_relocated(space, time, uid, contact);
+        }
+    } else {
+        remove_contacts(space, uid);
     }
+}
+
+fn get_contacts(
+    space: &space::CollisionSpace,
+    uid: sulphate::EntityUId,
+) -> Vec<sulphate::EntityUId> {
+    space.in_contact
+         .iter()
+         .flat_map(|&(one, other)| {
+             if one == uid {
+                 Some(other)
+             } else if other == uid {
+                 Some(one)
+             } else {
+                 None
+             }
+         })
+         .collect()
+}
+
+fn remove_contacts(
+    _space: &mut space::CollisionSpace,
+    _uid: sulphate::EntityUId,
+) {
+    unimplemented!();
 }
 
 fn march(
@@ -60,8 +124,34 @@ fn march(
     }
     let n = n.unwrap();
 
-    let (march, collisions) = get_march_data(space, time.now(), n);
-    apply_march_data(space, time, uid, n, march, collisions);
+    let (march, collisions) =
+        get_march_data(space, time.now(), n);
+    apply_march(space, time, uid, n, march);
+    apply_collisions(space, time, uid, collisions);
+}
+
+// used when the position/radius has changed,
+// as such current contacts, and stationary contacts must be considered
+// where they normally would not be
+fn march_relocated(
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    uid: sulphate::EntityUId,
+    contact: Vec<sulphate::EntityUId>,
+) {
+    let n = space.find_uid(uid);
+    if n.is_none() {
+        return;
+    }
+    let n = n.unwrap();
+
+    let (march, releases, collisions, new_stable) =
+        get_march_relocated_data(space, time.now(), n, contact);
+
+    apply_march(space, time, uid, n, march);
+    apply_releases(space, time, uid, releases);
+    apply_collisions(space, time, uid, collisions);
+    apply_new_stable_contacts(space, time, uid, n, new_stable);
 }
 
 fn apply_march(
@@ -70,39 +160,49 @@ fn apply_march(
     uid: sulphate::EntityUId,
     n: usize,
     march: Option<units::Time>,
-    collisions: Vec<(units::Time, units::Time, sulphate::EntityUId)>,
 ) {
     if let Some(march_time) = march {
         let march_event = MarchEvent { uid };
         sulphate::enqueue_absolute(time, march_event, march_time);
     }
-    space.contents[n].1.march_time = march;
+    space.contents[n].1.physics_state = march.map_or(
+        PhysicsState::NoMarch,
+        |t| PhysicsState::March(t),
+    );
 }
 
 fn apply_collisions(
     space: &mut space::CollisionSpace,
     time: &mut sulphate::EventQueue,
     uid: sulphate::EntityUId,
-    n: usize,
-    march: Option<units::Time>,
     collisions: Vec<(units::Time, units::Time, sulphate::EntityUId)>,
 ) {
     let this = CollideData::new(space, uid);
-    for (coll_time, second_uid) in collisions {
+    for (coll_time, release_time, second_uid) in collisions {
         let first = this.clone();
         let second = CollideData::new(space, second_uid);
-        let collide_event = CollideEvent { first, second };
+        let collide_event = CollideEvent { first, second, release_time };
         sulphate::enqueue_absolute(time, collide_event, coll_time);
     }
 }
 
-fn apply_stable_contact(
-    space: &mut space::CollisionSpace,
-    time: &mut sulphate::EventQueue,
-    uid: sulphate::EntityUId,
-    n: usize,
-    collisions: Vec<(sulphate::EntityUId, bool)>,
+fn apply_releases(
+    _space: &mut space::CollisionSpace,
+    _time: &mut sulphate::EventQueue,
+    _uid: sulphate::EntityUId,
+    _releases: Vec<sulphate::EntityUId>,
 ) {
+    unimplemented!();
+}
+
+fn apply_new_stable_contacts(
+    _space: &mut space::CollisionSpace,
+    _time: &mut sulphate::EventQueue,
+    _uid: sulphate::EntityUId,
+    _n: usize,
+    _stable: Vec<sulphate::EntityUId>,
+) {
+    unimplemented!();
 }
 
 enum MarchResult {
@@ -112,7 +212,7 @@ enum MarchResult {
     /// Objects close to eachother and collide over this time
     Collide(units::Time, units::Time),
     /// Objects touching, and release at this time
-    Release(units::Time),
+    //Release(units::Time),
     /// Objects close but do not touch
     Miss,
     /// Objects have the same velocity and are touching
@@ -128,30 +228,19 @@ fn get_march_data(
 ) -> (
     Option<units::Time>,
     Vec<(units::Time, units::Time, sulphate::EntityUId)>,
-    Vec<(sulphate::EntityUId, bool)>,
 ) {
     let (others, rest) = space.contents.split_at(n);
     let (_, ref this) = rest[0];
 
     let mut march = None;
-    let mut collisions = Vec::with_capacity(others.len());
-    let mut stable = Vec::with_capacity(others.len());
+    let mut collisions = Vec::new();
 
     for &(other_uid, ref other) in others {
         use self::MarchResult::*;
         match march_result(this, other, time_now) {
-            Miss => (),
-            StableMiss => if note_stable {
-                stable.push((other_uid, false));
-            },
+            Miss | StableMiss | StableContact => (),
             Collide(t, u) => {
                 collisions.push((t, u, other_uid));
-            },
-            Release(u) => {
-                collisions.push((time_now, u, other_uid));
-            },
-            StableContact => {
-                stable.push((other_uid, true));
             },
             March(t) => {
                 march = Some(march.map_or(t, |u| cmp::min(t, u)));
@@ -160,6 +249,20 @@ fn get_march_data(
     }
 
     (march, collisions)
+}
+
+fn get_march_relocated_data(
+    _space: &space::CollisionSpace,
+    _time_now: units::Time,
+    _n: usize,
+    _contacts: Vec<sulphate::EntityUId>,
+) -> (
+    Option<units::Time>,
+    Vec<sulphate::EntityUId>,  // don't need a release time?
+    Vec<(units::Time, units::Time, sulphate::EntityUId)>,
+    Vec<sulphate::EntityUId>,
+) {
+    unimplemented!();
 }
 
 // this is the edge-to-edge distance at which ray-marching and precise hit-scan
@@ -180,7 +283,11 @@ fn march_result(
     time: units::Time
 ) -> MarchResult {
     if one.body.velocity() == other.body.velocity() {
-        return MarchResult::Stable;
+        use self::CollideResult::*;
+        return match collision_stationary(one, other) {
+            Collision(_, _) => MarchResult::StableContact,
+            Miss => MarchResult::StableMiss,
+        };
     }
     let one_pos = one.body.position(time);
     let other_pos = other.body.position(time);
@@ -191,10 +298,11 @@ fn march_result(
 
     // if they are close enough, check for collision properly
     if centre_dist_squared < proximity.squared() {
-        if let Some(collide_time) = collide_time(one, other, time) {
-            MarchResult::Collide(collide_time)
-        } else {
-            MarchResult::Miss
+        use self::CollideResult::*;
+        match collision_linear(one, other) {
+            Collision(Some(t), Some(u)) => MarchResult::Collide(t, u),
+            Miss => MarchResult::Miss,
+            _ => unreachable!(),
         }
     } else {
         // otherwise march for a while
@@ -242,8 +350,8 @@ fn collision_linear(
                          / rel_vel.squared()
                          + near_time.squared();
         let diff: units::Duration = units::Scalar::sqrt(diff_squared);
-        let contact_time = near_time - diff;
-        let release_time = near_time + diff;
+        let contact_time = time + near_time - diff;
+        let release_time = time + near_time + diff + units::instants(1);
 
         CollideResult::Collision(Some(contact_time), Some(release_time))
     }
@@ -289,33 +397,12 @@ impl CollideData {
             CollideData { body, radius, uid }
         })
     }
-
-    /*
-    /// updates the radius field to match the current state of the entity
-    /// useful when followed by an equality comparison
-    /// (if the entity is being changed at that instant...)
-    fn update_radius(
-        self: &mut Self,
-        matter: &sulphate::EntityHeap,
-    ) {
-        if self.uid.ty == any::TypeId::of::<entities::Player> {
-            let img = matter.get::<entities::Player>(uid.id)
-                            .and_then(entities::Display::image);
-            if let Some(image) = img {
-                self.radius = img.radius;
-            } else {
-                false
-            }
-        } else {
-            panic!("Unknown entity trying to collide");
-        }
-    }
-    */
 }
 
 struct CollideEvent {
     first: CollideData,
     second: CollideData,
+    release_time: units::Time,
     // this would be faster than generating the current radius and comparing it
     // right?
     // enqueue_time: units::Time,  // the initiator should have the same time
@@ -331,19 +418,25 @@ impl sulphate::Event for CollideEvent {
         let first_now = CollideData::try_new(space, self.first.uid);
         let second_now = CollideData::try_new(space, self.second.uid);
 
-        if first_now.as_ref() != Some(&self.first)
-        || second_now.as_ref() != Some(&self.second) {
+        if (first_now.as_ref() != Some(&self.first)
+        || second_now.as_ref() != Some(&self.second))
+        && unimplemented!() /* check to see if a Bounce special case is
+                               occuring */
+        {
             return;
         }
 
-        if space.has_collided(time.now(), self.first.uid, self.second.uid) {
+        if space.are_in_contact(self.first.uid, self.second.uid) {
             return;
         }
 
-        space.note_collided(time.now(), self.first.uid, self.second.uid);
+        space.in_contact.push((self.first.uid, self.second.uid));
 
         collide(space, time, matter, self.first.uid, self.second.uid);
         collide(space, time, matter, self.second.uid, self.first.uid);
+
+        let release_event = ReleaseEvent { };
+        sulphate::enqueue_absolute(time, release_event, self.release_time);
     }
 }
 
@@ -366,6 +459,19 @@ fn collide(
     }
 }
 
+struct ReleaseEvent {
+}
+
+impl sulphate::Event for ReleaseEvent {
+    fn invoke(
+        self: Self,
+        _space: &mut space::CollisionSpace,
+        _time: &mut sulphate::EventQueue,
+        _matter: &mut sulphate::EntityHeap,
+    ) {
+        unimplemented!();
+    }
+}
 
 struct MarchEvent {
     uid: sulphate::EntityUId
@@ -379,19 +485,42 @@ impl sulphate::Event for MarchEvent {
         _matter: &mut sulphate::EntityHeap,
     ) {
         // has a body and that body is expecting to march right now
-        let march_time = space.get_uid(self.uid)
-                              .and_then(|body| body.march_time);
-        if march_time == Some(time.now()) {
-            march(space, time, self.uid);
+        let physics_state = space.get_uid(self.uid)
+                              .map(|body| body.physics_state);
+
+        if let Some(PhysicsState::March(march_time)) = physics_state {
+            if march_time == time.now() {
+                march(space, time, self.uid);
+            }
         }
+    }
+}
+
+struct BounceEvent {
+}
+
+impl sulphate::Event for BounceEvent {
+    fn invoke(
+        self: Self,
+        _space: &mut space::CollisionSpace,
+        _time: &mut sulphate::EventQueue,
+        _matter: &mut sulphate::EntityHeap,
+    ) {
     }
 }
 
 pub struct CollisionBody {
     pub body: Body,
     speed: units::Speed,
-    march_time: Option<units::Time>,
+    physics_state: PhysicsState,
     radius: units::Distance,
+}
+
+#[derive(Clone, Copy)]
+enum PhysicsState {
+    NoMarch,
+    March(units::Time),
+    Bounce,
 }
 
 #[derive(Clone, Debug)]

@@ -20,6 +20,10 @@ pub fn moments(num: i32) -> Duration {
     as_scalar / MOMENT_RATE as i64
 }
 
+pub fn instants(num: i64) -> Duration {
+    Duration::from_bits(num)
+}
+
 pub type Displacement = lib_math::Vector;
 pub type Velocity = lib_math::Vector;
 pub type Position = lib_math::Position;

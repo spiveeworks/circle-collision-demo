@@ -2,7 +2,6 @@ use std::any;
 
 use entities;
 use sulphate;
-use units;
 
 mod body;
 mod eyes;
@@ -17,16 +16,14 @@ pub use self::eyes::Image;
 // it is the medium through which entities can communicate psedunymously
 pub struct CollisionSpace {
     contents: Vec<(sulphate::EntityUId, body::CollisionBody)>,
-    last_collision_time: units::Time,
-    collisions: Vec<(sulphate::EntityUId, sulphate::EntityUId)>,
+    in_contact: Vec<(sulphate::EntityUId, sulphate::EntityUId)>,
 }
 
 impl CollisionSpace {
-    pub fn new(initial_time: units::Time) -> Self {
+    pub fn new() -> Self {
         let contents = Vec::new();
-        let last_collision_time = initial_time;
-        let collisions = Vec::new();
-        CollisionSpace { contents, last_collision_time, collisions }
+        let in_contact = Vec::new();
+        CollisionSpace { contents, in_contact }
     }
 
     fn find<T>(self: &Self, id: sulphate::EntityId) -> Option<usize>
@@ -76,38 +73,18 @@ impl CollisionSpace {
     }
 */
 
-    // will prevent things from colliding more than once per instant
-    // at the moment this works even if they collide in different ways each
-    // time
-    fn has_collided(
+    fn are_in_contact(
         self: &Self,
-        now: units::Time,
         first: sulphate::EntityUId,
         second: sulphate::EntityUId,
     ) -> bool {
-        if now != self.last_collision_time {
-            return false;
-        }
-        for &(x, y) in &self.collisions {
+        for &(x, y) in &self.in_contact {
             if first == x && second == y
             || first == y && second == x {
                 return true;
             }
         }
         false
-    }
-
-    fn note_collided(
-        self: &mut Self,
-        now: units::Time,
-        first: sulphate::EntityUId,
-        second: sulphate::EntityUId,
-    ) {
-        if now != self.last_collision_time {
-            self.collisions.clear();
-            self.last_collision_time = now;
-        }
-        self.collisions.push((first, second));
     }
 }
 
