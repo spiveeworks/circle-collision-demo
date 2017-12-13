@@ -7,7 +7,12 @@ use sulphate;
 use units;
 
 pub trait Collide: entities::Display + any::Any where Self: Sized {
+    /// called when an object moves into Self or teleports into Self
     fn collide(this: space::Entry<Self>, other: space::Image);
+    /// called when an object moves out of Self
+    fn release(this: space::Entry<Self>, other: space::Image);
+    /// called when an object teleports out of Self
+    fn disappear(this: space::Entry<Self>, other: space::Image);
 }
 
 /* this is quite complicated
@@ -65,7 +70,7 @@ pub fn update_physics(
         let radius = image.inner_image.radius();
         let physics_state = {
             if bounce {
-                PhysicsState::Bounce
+                PhysicsState::Bounce(time.now())
             } else {
                 PhysicsState::NoMarch
             }
@@ -177,10 +182,10 @@ fn apply_collisions(
     uid: sulphate::EntityUId,
     collisions: Vec<(units::Time, units::Time, sulphate::EntityUId)>,
 ) {
-    let this = CollideData::new(space, uid);
+    let this = ContactData::new(space, uid);
     for (coll_time, release_time, second_uid) in collisions {
         let first = this.clone();
-        let second = CollideData::new(space, second_uid);
+        let second = ContactData::new(space, second_uid);
         let collide_event = CollideEvent { first, second, release_time };
         sulphate::enqueue_absolute(time, collide_event, coll_time);
     }
@@ -371,37 +376,53 @@ fn collision_stationary(
 }
 
 #[derive(Clone, PartialEq)]
-struct CollideData {
+struct ContactData {
     body: space::Body,
     radius: units::Distance,
     uid: sulphate::EntityUId,
 }
 
-impl CollideData {
+impl ContactData {
     fn new(
         space: &space::CollisionSpace,
         uid: sulphate::EntityUId,
     ) -> Self {
-        CollideData::try_new(space, uid).expect(
-            "Constructing CollideData for entity that isn't in the space"
-        )
+        ContactData::try_new(space, uid).expect(
+            "Constructing ContactData for entity that isn't in the space"
+        ).0
     }
 
     fn try_new(
         space: &space::CollisionSpace,
         uid: sulphate::EntityUId,
-    ) -> Option<Self> {
+    ) -> Option<(Self, Option<units::Time>)> {
         space.get_uid(uid).map(|c_body| {
             let body = c_body.body.clone();
             let radius = c_body.radius;
-            CollideData { body, radius, uid }
+            (
+                ContactData { body, radius, uid },
+                if let PhysicsState::Bounce(t) = c_body.physics_state {
+                    Some(t)
+                } else {
+                    None
+                },
+            )
         })
+    }
+
+    fn is_bounce(
+        self: &Self,
+        other: &Self,
+        time: units::Time,
+    ) -> bool {
+        self.radius == other.radius &&
+            self.body.position(time) == other.body.position(time)
     }
 }
 
 struct CollideEvent {
-    first: CollideData,
-    second: CollideData,
+    first: ContactData,
+    second: ContactData,
     release_time: units::Time,
     // this would be faster than generating the current radius and comparing it
     // right?
@@ -415,37 +436,114 @@ impl sulphate::Event for CollideEvent {
         time: &mut sulphate::EventQueue,
         matter: &mut sulphate::EntityHeap,
     ) {
-        let first_now = CollideData::try_new(space, self.first.uid);
-        let second_now = CollideData::try_new(space, self.second.uid);
-
-        if (first_now.as_ref() != Some(&self.first)
-        || second_now.as_ref() != Some(&self.second))
-        && unimplemented!() /* check to see if a Bounce special case is
-                               occuring */
+        if contact_event_relevant(space, time.now(), &self.first, &self.second)
+            && !space.are_in_contact(self.first.uid, self.second.uid)
         {
-            return;
+            perform_contact(
+                space,
+                time,
+                matter,
+                self.first.uid,
+                self.second.uid,
+                ContactType::Collision,
+            );
         }
 
-        if space.are_in_contact(self.first.uid, self.second.uid) {
-            return;
-        }
-
-        space.in_contact.push((self.first.uid, self.second.uid));
-
-        collide(space, time, matter, self.first.uid, self.second.uid);
-        collide(space, time, matter, self.second.uid, self.first.uid);
-
-        let release_event = ReleaseEvent { };
+        let release_event = ReleaseEvent {
+            first: self.first,
+            second: self.second,
+        };
         sulphate::enqueue_absolute(time, release_event, self.release_time);
     }
 }
 
-fn collide(
+fn perform_contact(
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    matter: &mut sulphate::EntityHeap,
+    first_uid: sulphate::EntityUId,
+    second_uid: sulphate::EntityUId,
+    contact_type: ContactType,
+) {
+    match contact_type {
+        ContactType::Collision => {
+            space.in_contact.push((first_uid, second_uid));
+        },
+        ContactType::Release | ContactType::Disappear => {
+            space.release_contact(first_uid, second_uid);
+        },
+    }
+
+    invoke_contact(space, time, matter, first_uid, second_uid, contact_type);
+    invoke_contact(space, time, matter, second_uid, first_uid, contact_type);
+}
+
+struct ReleaseEvent {
+    first: ContactData,
+    second: ContactData,
+}
+
+impl sulphate::Event for ReleaseEvent {
+    fn invoke(
+        self: Self,
+        space: &mut space::CollisionSpace,
+        time: &mut sulphate::EventQueue,
+        matter: &mut sulphate::EntityHeap,
+    ) {
+        if contact_event_relevant(space, time.now(), &self.first, &self.second)
+            && space.are_in_contact(self.first.uid, self.second.uid)
+        {
+            perform_contact(
+                space,
+                time,
+                matter,
+                self.first.uid,
+                self.second.uid,
+                ContactType::Release,
+            );
+        }
+    }
+}
+
+
+
+
+fn contact_event_relevant(
+    space: &mut space::CollisionSpace,
+    time: units::Time,
+    first: &ContactData,
+    second: &ContactData,
+) -> bool {
+        let first_now = ContactData::try_new(space, first.uid);
+        let second_now = ContactData::try_new(space, second.uid);
+
+        if first_now == None || second_now == None {
+            return false;
+        }
+
+        let (first_now, first_bounce) = first_now.unwrap();
+        let (second_now, second_bounce) = second_now.unwrap();
+
+        let first_is_bounce = first_bounce.map_or(false, |t|
+            t == time &&
+            ContactData::is_bounce(&first_now, first, time)
+        );
+        let second_is_bounce = second_bounce.map_or(false, |t|
+            t == time &&
+            ContactData::is_bounce(&second_now, second, time)
+        );
+
+        (first_is_bounce || first_now == *first) &&
+            (second_is_bounce || second_now == *second)
+}
+
+fn invoke_contact(
     space: &mut space::CollisionSpace,
     time: &mut sulphate::EventQueue,
     matter: &mut sulphate::EntityHeap,
     this_uid: sulphate::EntityUId,
     with_uid: sulphate::EntityUId,
+    contact_type: ContactType,
 ) {
     let inner_image = entities::image_of(matter, with_uid).expect(
         "Collided with body of nonexistent entity"
@@ -455,22 +553,21 @@ fn collide(
 
     if this_uid.ty == any::TypeId::of::<entities::Player>() {
         let ent = space.entry::<entities::Player>(time, matter, this_uid.id);
-        Collide::collide(ent, with);
+
+        use self::ContactType::*;
+        match contact_type {
+            Collision => Collide::collide(ent, with),
+            Release => Collide::release(ent, with),
+            Disappear => Collide::disappear(ent, with),
+        }
     }
 }
 
-struct ReleaseEvent {
-}
-
-impl sulphate::Event for ReleaseEvent {
-    fn invoke(
-        self: Self,
-        _space: &mut space::CollisionSpace,
-        _time: &mut sulphate::EventQueue,
-        _matter: &mut sulphate::EntityHeap,
-    ) {
-        unimplemented!();
-    }
+#[derive(Clone, Copy)]
+enum ContactType {
+    Collision,
+    Release,
+    Disappear,
 }
 
 struct MarchEvent {
@@ -520,7 +617,7 @@ pub struct CollisionBody {
 enum PhysicsState {
     NoMarch,
     March(units::Time),
-    Bounce,
+    Bounce(units::Time),
 }
 
 #[derive(Clone, Debug)]

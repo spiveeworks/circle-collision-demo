@@ -130,5 +130,15 @@ impl space::Collide for Player {
             *body = space::Body::new_frozen(new_position);
         }
     }
+
+    fn release(
+        _this: space::Entry<Player>,
+        _other: space::Image,
+    ) {}
+
+    fn disappear(
+        _this: space::Entry<Player>,
+        _other: space::Image,
+    ) {}
 }
 

@@ -86,5 +86,16 @@ impl CollisionSpace {
         }
         false
     }
+
+    fn release_contact(
+        self: &mut Self,
+        first: sulphate::EntityUId,
+        second: sulphate::EntityUId,
+    ) {
+        self.in_contact.retain(|&(x, y)|
+            !(first == x && second == y ||
+                  first == y && second == x)
+        );
+    }
 }
 
