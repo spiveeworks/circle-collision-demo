@@ -88,8 +88,10 @@ impl<'a, T> Drop for Entry<'a, T>
         super::body::update_physics(
             &mut self.space,
             &mut self.time,
+            &mut self.matter,
             uid,
             after,
+            before,
         );
 
         if before != after {

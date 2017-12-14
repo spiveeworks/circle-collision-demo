@@ -97,5 +97,23 @@ impl CollisionSpace {
                   first == y && second == x)
         );
     }
+
+    fn get_contacts(
+        self: &Self,
+        uid: sulphate::EntityUId,
+    ) -> Vec<sulphate::EntityUId> {
+        self.in_contact
+            .iter()
+            .flat_map(|&(first, second)| {
+                if uid == first {
+                    Some(second)
+                } else if uid == second {
+                    Some(first)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 

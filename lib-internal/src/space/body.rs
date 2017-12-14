@@ -33,8 +33,10 @@ pub trait Collide: entities::Display + any::Any where Self: Sized {
 pub fn update_physics(
     space: &mut space::CollisionSpace,
     time: &mut sulphate::EventQueue,
+    matter: &mut sulphate::EntityHeap,
     uid: sulphate::EntityUId,
     maybe_image: Option<&space::Image>,
+    maybe_before: Option<&space::Image>,
 ) {
     let maybe_n = space.find_uid(uid);
     let mut bounce = false;
@@ -59,6 +61,16 @@ pub fn update_physics(
 
     // remove the body's old location, to reset its priority
     if let Some(n) = maybe_n {
+        if maybe_image.is_none() {
+            let before = maybe_before.expect(
+                "nonexistent entity with body tried to disappear"
+            );
+            for other in space.get_contacts(uid) {
+                perform_disappearance(space, time, matter, uid, other,
+                                      before.clone());
+            }
+        }
+
         space.contents.remove(n);
     }
 
@@ -85,37 +97,10 @@ pub fn update_physics(
             let bounce_event = BounceEvent { };
             sulphate::enqueue_relative(time, bounce_event, units::instants(1));
         } else {
-            let contact = get_contacts(space, uid);
-            march_relocated(space, time, uid, contact);
+            let contact = space.get_contacts(uid);
+            march_relocated(space, time, matter, uid, contact, maybe_before);
         }
-    } else {
-        remove_contacts(space, uid);
     }
-}
-
-fn get_contacts(
-    space: &space::CollisionSpace,
-    uid: sulphate::EntityUId,
-) -> Vec<sulphate::EntityUId> {
-    space.in_contact
-         .iter()
-         .flat_map(|&(one, other)| {
-             if one == uid {
-                 Some(other)
-             } else if other == uid {
-                 Some(one)
-             } else {
-                 None
-             }
-         })
-         .collect()
-}
-
-fn remove_contacts(
-    _space: &mut space::CollisionSpace,
-    _uid: sulphate::EntityUId,
-) {
-    unimplemented!();
 }
 
 fn march(
@@ -141,8 +126,10 @@ fn march(
 fn march_relocated(
     space: &mut space::CollisionSpace,
     time: &mut sulphate::EventQueue,
+    matter: &mut sulphate::EntityHeap,
     uid: sulphate::EntityUId,
     contact: Vec<sulphate::EntityUId>,
+    maybe_before: Option<&space::Image>,
 ) {
     let n = space.find_uid(uid);
     if n.is_none() {
@@ -150,13 +137,17 @@ fn march_relocated(
     }
     let n = n.unwrap();
 
+    let before = maybe_before.expect(
+        "nonexistent entity with body tried to appear"
+    );
+
     let (march, releases, collisions, new_stable) =
         get_march_relocated_data(space, time.now(), n, contact);
 
     apply_march(space, time, uid, n, march);
-    apply_releases(space, time, uid, releases);
+    apply_disappearances(space, time, matter, uid, releases, before);
     apply_collisions(space, time, uid, collisions);
-    apply_new_stable_contacts(space, time, uid, n, new_stable);
+    apply_new_stable_contacts(space, time, matter, uid, new_stable);
 }
 
 fn apply_march(
@@ -191,23 +182,30 @@ fn apply_collisions(
     }
 }
 
-fn apply_releases(
-    _space: &mut space::CollisionSpace,
-    _time: &mut sulphate::EventQueue,
-    _uid: sulphate::EntityUId,
-    _releases: Vec<sulphate::EntityUId>,
+fn apply_disappearances(
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    matter: &mut sulphate::EntityHeap,
+    uid: sulphate::EntityUId,
+    releases: Vec<sulphate::EntityUId>,
+    before: &space::Image,
 ) {
-    unimplemented!();
+    for other in releases {
+        perform_disappearance(space, time, matter, uid, other, before.clone());
+    }
 }
 
 fn apply_new_stable_contacts(
-    _space: &mut space::CollisionSpace,
-    _time: &mut sulphate::EventQueue,
-    _uid: sulphate::EntityUId,
-    _n: usize,
-    _stable: Vec<sulphate::EntityUId>,
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    matter: &mut sulphate::EntityHeap,
+    uid: sulphate::EntityUId,
+    stable: Vec<sulphate::EntityUId>,
 ) {
-    unimplemented!();
+    for other in stable {
+        perform_contact(space, time, matter, uid, other, ContactType::Collision);
+        space.in_contact.push((uid, other));
+    }
 }
 
 enum MarchResult {
@@ -478,6 +476,21 @@ fn perform_contact(
     invoke_contact(space, time, matter, second_uid, first_uid, contact_type);
 }
 
+fn perform_disappearance(
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    matter: &mut sulphate::EntityHeap,
+    first_uid: sulphate::EntityUId,
+    second_uid: sulphate::EntityUId,
+    first_image: space::Image,
+) {
+    space.release_contact(first_uid, second_uid);
+
+    let contact = ContactType::Disappear;
+    invoke_contact(space, time, matter, first_uid, second_uid, contact);
+    invoke_contact_with(space, time, matter, second_uid, first_image, contact);
+}
+
 struct ReleaseEvent {
     first: ContactData,
     second: ContactData,
@@ -551,6 +564,17 @@ fn invoke_contact(
     let body = space.get_uid(with_uid).unwrap().body.clone();
     let with = space::Image { body, inner_image };
 
+    invoke_contact_with(space, time, matter, this_uid, with, contact_type);
+}
+
+fn invoke_contact_with(
+    space: &mut space::CollisionSpace,
+    time: &mut sulphate::EventQueue,
+    matter: &mut sulphate::EntityHeap,
+    this_uid: sulphate::EntityUId,
+    with: space::Image,
+    contact_type: ContactType,
+) {
     if this_uid.ty == any::TypeId::of::<entities::Player>() {
         let ent = space.entry::<entities::Player>(time, matter, this_uid.id);
 
@@ -603,6 +627,7 @@ impl sulphate::Event for BounceEvent {
         _time: &mut sulphate::EventQueue,
         _matter: &mut sulphate::EntityHeap,
     ) {
+        unimplemented!();
     }
 }
 
