@@ -180,6 +180,7 @@ fn apply_collisions(
         let collide_event = CollideEvent { first, second, release_time };
         sulphate::enqueue_absolute(time, collide_event, coll_time);
     }
+    unimplemented!(); // now it gets collisions that have already occured.
 }
 
 fn apply_disappearances(
@@ -255,17 +256,59 @@ fn get_march_data(
 }
 
 fn get_march_relocated_data(
-    _space: &space::CollisionSpace,
-    _time_now: units::Time,
-    _n: usize,
-    _contacts: Vec<sulphate::EntityUId>,
+    space: &space::CollisionSpace,
+    time_now: units::Time,
+    n: usize,
+    contacts: Vec<sulphate::EntityUId>,
 ) -> (
     Option<units::Time>,
     Vec<sulphate::EntityUId>,  // don't need a release time?
     Vec<(units::Time, units::Time, sulphate::EntityUId)>,
     Vec<sulphate::EntityUId>,
 ) {
-    unimplemented!();
+    debug_assert_eq!(
+        n + 1, space.contents.len(),
+        "entity's prioirity not reset"
+    );
+
+    let (others, rest) = space.contents.split_at(n);
+    let (_, ref this) = rest[0];
+
+    let mut march = None;
+    let mut releases = Vec::new();
+    let mut collisions = Vec::new();
+    let mut stable_collisions = Vec::new();
+
+    for &(other_uid, ref other) in others {
+        use self::MarchResult::*;
+        match march_result(this, other, time_now) {
+            Miss | StableMiss => {
+                if contacts.contains(&other_uid) {
+                    releases.push(other_uid);
+                }
+            },
+            StableContact => {
+                if !contacts.contains(&other_uid) {
+                    stable_collisions.push(other_uid);
+                }
+            },
+            Collide(t, u) => {
+                collisions.push((t, u, other_uid));
+                if contacts.contains(&other_uid) && time_now < t || u <= time_now {
+                    releases.push(other_uid);
+                }
+                unimplemented!(); // how does collision actually work now anyway?
+            },
+            March(t) => {
+                march = Some(march.map_or(t, |u| cmp::min(t, u)));
+                if contacts.contains(&other_uid) {
+                    releases.push(other_uid);
+                }
+            },
+        }
+    }
+
+    (march, releases, collisions, stable_collisions)
 }
 
 // this is the edge-to-edge distance at which ray-marching and precise hit-scan
