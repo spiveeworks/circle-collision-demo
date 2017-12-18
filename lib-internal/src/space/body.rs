@@ -137,10 +137,6 @@ fn march_relocated(
     }
     let n = n.unwrap();
 
-    let before = maybe_before.expect(
-        "nonexistent entity with body tried to appear"
-    );
-
     let (march, releases, collisions, new_stable) =
         get_march_relocated_data(space, time.now(), n, contact);
 
@@ -149,7 +145,12 @@ fn march_relocated(
     //      similarly if apply_collisions starts calling events directly
     apply_march(space, time, uid, n, march);
     // NOTE this must be called before apply_collisions
-    apply_disappearances(space, time, matter, uid, releases, before);
+    if releases.len() > 0 {
+        let before = maybe_before.expect(
+            "nonexistent entity with contacts tried to appear"
+        );
+        apply_disappearances(space, time, matter, uid, releases, before);
+    }
     apply_collisions(space, time, uid, collisions);
     apply_new_stable_contacts(space, time, matter, uid, new_stable);
 }
