@@ -94,7 +94,7 @@ pub fn update_physics(
         if bounce {
             march(space, time, uid);
 
-            let bounce_event = BounceEvent { };
+            let bounce_event = MarchEvent { uid };
             sulphate::enqueue_relative(time, bounce_event, units::instants(1));
         } else {
             let contact = space.get_contacts(uid);
@@ -144,7 +144,11 @@ fn march_relocated(
     let (march, releases, collisions, new_stable) =
         get_march_relocated_data(space, time.now(), n, contact);
 
+    // TODO disappearances and new_stable_contacts can cause problems
+    //      since they might cause a second update_physics to be called
+    //      similarly if apply_collisions starts calling events directly
     apply_march(space, time, uid, n, march);
+    // NOTE this must be called before apply_collisions
     apply_disappearances(space, time, matter, uid, releases, before);
     apply_collisions(space, time, uid, collisions);
     apply_new_stable_contacts(space, time, matter, uid, new_stable);
@@ -177,10 +181,14 @@ fn apply_collisions(
     for (coll_time, release_time, second_uid) in collisions {
         let first = this.clone();
         let second = ContactData::new(space, second_uid);
-        let collide_event = CollideEvent { first, second, release_time };
-        sulphate::enqueue_absolute(time, collide_event, coll_time);
+        if space.are_in_contact(uid, second_uid) {
+            let release_event = ReleaseEvent { first, second };
+            sulphate::enqueue_absolute(time, release_event, release_time);
+        } else if time.now() < release_time {
+            let collide_event = CollideEvent { first, second, release_time };
+            sulphate::enqueue_absolute(time, collide_event, coll_time);
+        }
     }
-    unimplemented!(); // now it gets collisions that have already occured.
 }
 
 fn apply_disappearances(
@@ -292,12 +300,13 @@ fn get_march_relocated_data(
                     stable_collisions.push(other_uid);
                 }
             },
-            Collide(t, u) => {
-                collisions.push((t, u, other_uid));
-                if contacts.contains(&other_uid) && time_now < t || u <= time_now {
+            Collide(c, r) => {
+                collisions.push((c, r, other_uid));
+                if contacts.contains(&other_uid) &&
+                    time_now < c || r <= time_now
+                {
                     releases.push(other_uid);
                 }
-                unimplemented!(); // how does collision actually work now anyway?
             },
             March(t) => {
                 march = Some(march.map_or(t, |u| cmp::min(t, u)));
@@ -641,6 +650,28 @@ struct MarchEvent {
     uid: sulphate::EntityUId
 }
 
+impl MarchEvent {
+    fn still_relevant(
+        self: &Self,
+        space: &space::CollisionSpace,
+        _matter: &sulphate::EntityHeap,
+        _time_now: units::Time,
+        exec_time: units::Time,
+    ) -> bool {
+        let physics_state = space.get_uid(self.uid)
+                                 .map(|body| body.physics_state);
+        use self::PhysicsState::*;
+        match physics_state {
+            None => false,
+            Some(March(march_time)) =>
+                exec_time == march_time,
+            Some(Bounce(bounce_time)) =>
+                exec_time == bounce_time + units::instants(1),
+            Some(NoMarch) => false,
+        }
+    }
+}
+
 impl sulphate::Event for MarchEvent {
     fn invoke(
         self: Self,
@@ -648,29 +679,9 @@ impl sulphate::Event for MarchEvent {
         time: &mut sulphate::EventQueue,
         _matter: &mut sulphate::EntityHeap,
     ) {
-        // has a body and that body is expecting to march right now
-        let physics_state = space.get_uid(self.uid)
-                              .map(|body| body.physics_state);
-
-        if let Some(PhysicsState::March(march_time)) = physics_state {
-            if march_time == time.now() {
-                march(space, time, self.uid);
-            }
+        if self.still_relevant(space, _matter, time.now(), time.now()) {
+            march(space, time, self.uid);
         }
-    }
-}
-
-struct BounceEvent {
-}
-
-impl sulphate::Event for BounceEvent {
-    fn invoke(
-        self: Self,
-        _space: &mut space::CollisionSpace,
-        _time: &mut sulphate::EventQueue,
-        _matter: &mut sulphate::EntityHeap,
-    ) {
-        unimplemented!();
     }
 }
 
