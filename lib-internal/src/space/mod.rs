@@ -61,6 +61,20 @@ impl CollisionSpace {
             .map(|n| &self.contents[n].1)
     }
 
+    fn get_uid_image(
+        self: &Self,
+        matter: &sulphate::EntityHeap,
+        uid: sulphate::EntityUId,
+    ) -> Option<Image> {
+        let body = self.get_uid(uid).map(|c_body| c_body.body.clone());
+        let image = entities::image_of(matter, uid);
+        body.and_then(|body|
+            image.map(|inner_image|
+                Image { inner_image, body }
+            )
+        )
+    }
+
 /*
     fn get_mut<T>(
         self: &mut Self,
