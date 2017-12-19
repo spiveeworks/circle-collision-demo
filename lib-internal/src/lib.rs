@@ -1,5 +1,3 @@
-#![feature(get_type_id)]
-
 extern crate lib_math;
 extern crate rand;
 extern crate sulphate_lib;
