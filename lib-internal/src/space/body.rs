@@ -92,8 +92,6 @@ pub fn update_physics(
         space.contents.push((uid, c_body));
 
         if bounce {
-            march(space, time, uid);
-
             let bounce_event = MarchEvent { uid };
             sulphate::enqueue_relative(time, bounce_event, units::instants(1));
         } else {
