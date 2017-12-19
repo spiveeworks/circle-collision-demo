@@ -56,7 +56,22 @@ impl Control {
                 let mut this: space::Entry<Player> =
                     space.entry(time, matter, id);
                 let now = this.now();
+
+                // do this borrow before the mutable borrow that follows
+                let contact_images = this.get_contact_images();
+
                 if let Some(body) = this.body.as_mut() {
+                    let pos = body.position(now);
+                    for image in contact_images {
+                        let rel_vel = velocity - image.body.velocity();
+                        let obst_dir = image.body.position(now) - pos;
+                        let dir = units::Vector::inner(rel_vel, obst_dir);
+
+                        if dir > 0 {
+                            return;  // obstacle in the way in that direction
+                        }
+                    }
+
                     body.bounce(velocity, now);
                 } else {
                     println!("Player has no location!");
@@ -123,12 +138,17 @@ impl space::Collide for Player {
         let now = this.now();
 
         let body = this.body.as_mut().expect("Collided without a body");
-        let velocity = body.velocity();
-        let position = body.position(now);
-        if velocity != Default::default() {
-            let new_position = position - (velocity / velocity.magnitude());
-            *body = space::Body::new_frozen(new_position);
-        }
+        body.bounce(units::Velocity::default(), now);
     }
+
+    fn release(
+        _this: space::Entry<Player>,
+        _other: space::Image,
+    ) {}
+
+    fn disappear(
+        _this: space::Entry<Player>,
+        _other: space::Image,
+    ) {}
 }
 

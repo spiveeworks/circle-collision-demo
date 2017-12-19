@@ -66,6 +66,16 @@ impl<'a, T> Entry<'a, T>
                     .map(|inner_image| Image { inner_image, body })
             })
     }
+
+    pub fn get_contact_images(self: &Self) -> Vec<Image> {
+        let id = self.id;
+        let ty = any::TypeId::of::<T>();
+        let this_uid = sulphate::EntityUId { id, ty };
+        let contacts = self.space.get_contacts(this_uid);
+        contacts.into_iter()
+                .flat_map(|uid| self.space.get_uid_image(&self.matter, uid))
+                .collect()
+    }
 }
 
 #[derive(Clone, PartialEq)]
@@ -88,8 +98,10 @@ impl<'a, T> Drop for Entry<'a, T>
         super::body::update_physics(
             &mut self.space,
             &mut self.time,
+            &mut self.matter,
             uid,
             after,
+            before,
         );
 
         if before != after {

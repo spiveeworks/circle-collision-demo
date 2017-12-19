@@ -2,7 +2,6 @@ use std::any;
 
 use entities;
 use sulphate;
-use units;
 
 mod body;
 mod eyes;
@@ -17,16 +16,14 @@ pub use self::eyes::Image;
 // it is the medium through which entities can communicate psedunymously
 pub struct CollisionSpace {
     contents: Vec<(sulphate::EntityUId, body::CollisionBody)>,
-    last_collision_time: units::Time,
-    collisions: Vec<(sulphate::EntityUId, sulphate::EntityUId)>,
+    in_contact: Vec<(sulphate::EntityUId, sulphate::EntityUId)>,
 }
 
 impl CollisionSpace {
-    pub fn new(initial_time: units::Time) -> Self {
+    pub fn new() -> Self {
         let contents = Vec::new();
-        let last_collision_time = initial_time;
-        let collisions = Vec::new();
-        CollisionSpace { contents, last_collision_time, collisions }
+        let in_contact = Vec::new();
+        CollisionSpace { contents, in_contact }
     }
 
     fn find<T>(self: &Self, id: sulphate::EntityId) -> Option<usize>
@@ -64,6 +61,20 @@ impl CollisionSpace {
             .map(|n| &self.contents[n].1)
     }
 
+    fn get_uid_image(
+        self: &Self,
+        matter: &sulphate::EntityHeap,
+        uid: sulphate::EntityUId,
+    ) -> Option<Image> {
+        let body = self.get_uid(uid).map(|c_body| c_body.body.clone());
+        let image = entities::image_of(matter, uid);
+        body.and_then(|body|
+            image.map(|inner_image|
+                Image { inner_image, body }
+            )
+        )
+    }
+
 /*
     fn get_mut<T>(
         self: &mut Self,
@@ -76,19 +87,12 @@ impl CollisionSpace {
     }
 */
 
-    // will prevent things from colliding more than once per instant
-    // at the moment this works even if they collide in different ways each
-    // time
-    fn has_collided(
+    fn are_in_contact(
         self: &Self,
-        now: units::Time,
         first: sulphate::EntityUId,
         second: sulphate::EntityUId,
     ) -> bool {
-        if now != self.last_collision_time {
-            return false;
-        }
-        for &(x, y) in &self.collisions {
+        for &(x, y) in &self.in_contact {
             if first == x && second == y
             || first == y && second == x {
                 return true;
@@ -97,17 +101,33 @@ impl CollisionSpace {
         false
     }
 
-    fn note_collided(
+    fn release_contact(
         self: &mut Self,
-        now: units::Time,
         first: sulphate::EntityUId,
         second: sulphate::EntityUId,
     ) {
-        if now != self.last_collision_time {
-            self.collisions.clear();
-            self.last_collision_time = now;
-        }
-        self.collisions.push((first, second));
+        self.in_contact.retain(|&(x, y)|
+            !(first == x && second == y ||
+                  first == y && second == x)
+        );
+    }
+
+    fn get_contacts(
+        self: &Self,
+        uid: sulphate::EntityUId,
+    ) -> Vec<sulphate::EntityUId> {
+        self.in_contact
+            .iter()
+            .flat_map(|&(first, second)| {
+                if uid == first {
+                    Some(second)
+                } else if uid == second {
+                    Some(first)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
 
