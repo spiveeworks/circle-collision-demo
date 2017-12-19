@@ -180,7 +180,7 @@ fn create_server_local<F, R>(
     let mut clock = Clock(Simple::new(initial_time));
     clock.0.start(time::Instant::now());
 
-    let mut space = space::CollisionSpace::new(initial_time);
+    let mut space = space::CollisionSpace::new();
     let mut time = sulphate::EventQueue::new(initial_time);
     let mut matter = sulphate::EntityHeap::new();
 
