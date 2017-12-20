@@ -1,10 +1,7 @@
+extern crate lil_city;
 extern crate piston_window;
 
 use piston_window::*;
-
-extern crate city_internal;
-
-mod client;
 
 
 // as seen in https://github.com/PistonDevelopers/piston-examples/issues/336
@@ -34,7 +31,7 @@ fn build_window() -> PistonWindow {
 
 
 fn main() {
-    let mut client = client::start_game();
+    let mut client = lil_city::start_game();
 
     let mut window: PistonWindow = build_window();
 

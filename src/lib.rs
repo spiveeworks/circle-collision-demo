@@ -1,3 +1,6 @@
+extern crate city_internal;
+extern crate piston_window;
+
 use std::sync::mpsc;
 
 use city_internal::entities::player;
@@ -123,7 +126,7 @@ impl Client {
     pub fn on_input(self: &mut Self, bin: app::ButtonArgs) {
         let action = self.input.interpret(bin);
 
-        use client::user_input::DeviceUpdate::*;
+        use user_input::DeviceUpdate::*;
         match action {
             Nop => (),
             ChangeMovement { dirs } => {
