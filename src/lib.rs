@@ -1,6 +1,8 @@
 extern crate piston_app;
 extern crate piston_window;
 
+mod animation;
+
 use piston_window::*;
 
 pub struct App {
