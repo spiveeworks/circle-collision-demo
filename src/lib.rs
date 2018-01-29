@@ -2,6 +2,7 @@ extern crate piston_app;
 extern crate piston_window;
 
 mod animation;
+pub mod math;
 
 use piston_window::*;
 
