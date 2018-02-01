@@ -18,6 +18,7 @@ pub struct Coord {
 
 impl From<Inner> for Scalar {
     fn from(value: Inner) -> Scalar {
+        debug_assert!(value.is_finite());
         Scalar { value }
     }
 }
@@ -28,6 +29,23 @@ impl From<Scalar> for Inner {
     }
 }
 
+impl Eq for Scalar {
+}
+
+impl Eq for Coord {
+}
+
+impl Ord for Scalar {
+    fn cmp(self: &Scalar, other: &Scalar) -> cmp::Ordering {
+        PartialOrd::partial_cmp(self, other).expect("NaN comparison")
+    }
+}
+
+impl Ord for Coord {
+    fn cmp(self: &Coord, other: &Coord) -> cmp::Ordering {
+        PartialOrd::partial_cmp(self, other).expect("NaN comparison")
+    }
+}
 
 impl PartialEq<Inner> for Scalar {
     fn eq(self: &Scalar, other: &Inner) -> bool {
@@ -81,6 +99,7 @@ impl ops::Sub for Coord {
     type Output = Scalar;
     fn sub(self: Coord, other: Coord) -> Scalar {
         let value = self.value - other.value;
+        debug_assert!(value.is_finite());
         Scalar { value }
     }
 }
@@ -181,54 +200,63 @@ impl ops::Div<Inner> for Scalar {
 impl ops::AddAssign for Scalar {
     fn add_assign(self: &mut Scalar, other: Scalar) {
         self.value += other.value;
+        debug_assert!(self.value.is_finite());
     }
 }
 
 impl ops::AddAssign<Scalar> for Coord {
     fn add_assign(self: &mut Coord, other: Scalar) {
         self.value += other.value;
+        debug_assert!(self.value.is_finite());
     }
 }
 
 impl ops::SubAssign for Scalar {
     fn sub_assign(self: &mut Scalar, other: Scalar) {
         self.value -= other.value;
+        debug_assert!(self.value.is_finite());
     }
 }
 
 impl ops::SubAssign<Scalar> for Coord {
     fn sub_assign(self: &mut Coord, other: Scalar) {
         self.value -= other.value;
+        debug_assert!(self.value.is_finite());
     }
 }
 
 impl ops::MulAssign for Scalar {
     fn mul_assign(self: &mut Scalar, other: Scalar) {
         self.value *= other.value;
+        debug_assert!(self.value.is_finite());
     }
 }
 
 impl ops::DivAssign for Scalar {
     fn div_assign(self: &mut Scalar, other: Scalar) {
         self.value /= other.value;
+        debug_assert!(self.value.is_finite());
     }
 }
 
 impl ops::MulAssign<Inner> for Scalar {
     fn mul_assign(self: &mut Scalar, other: Inner) {
         self.value *= other;
+        debug_assert!(self.value.is_finite());
     }
 }
 
 impl ops::DivAssign<Inner> for Scalar {
     fn div_assign(self: &mut Scalar, other: Inner) {
         self.value /= other;
+        debug_assert!(self.value.is_finite());
     }
 }
 
 impl ops::RemAssign for Scalar {
     fn rem_assign(self: &mut Scalar, other: Scalar) {
         self.value %= other.value;
+        debug_assert!(self.value.is_finite());
     }
 }
 
