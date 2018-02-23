@@ -1,31 +1,29 @@
-use std::collections::hash_map;
+use maths::units;
 
-type Time = f64;
-type Duration = f64;
-
-type EntityUId = (u64, u64);
-
-struct Body {
-    position: [f64; 3],
-    velocity: [f64; 3],
-    updated: Time,
+pub struct Body {
+    position: units::Position,
+    _velocity: units::Velocity,
+    _updated: units::Time,
 }
 
-struct Image {
-    body: Body,
-    image: ImageVariant,
+impl Body {
+    pub fn position(self: &Self, _now: units::Time) -> units::Position {
+        self.position
+    }
 }
 
-type ImageVariant = u64;
-
-struct Scene {
-    sequences: hash_map::HashMap<EntityUId, Sequence>,
+pub struct Matter {
+    pub body: Body,
 }
 
-struct Sequence {
-    locations: Vec<(Duration, Image)>,
-    final_duration: Duration,
+impl Matter {
+    pub fn new() -> Self {
+        let position = Default::default();
+        let _velocity = Default::default();
+        let _updated = Default::default();
+        let body = Body { position, _velocity, _updated };
+
+        Matter { body }
+    }
 }
-
-
 

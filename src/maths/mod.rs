@@ -2,6 +2,9 @@
 mod scalar;
 mod vector;
 
+// some type aliases
+pub mod units;
+
 type Inner = f64;
 
 pub use self::scalar::Scalar;
