@@ -44,12 +44,18 @@ impl piston_app::App for App {
         self: &mut Self,
         centre: Context,
         graphics: &mut G2d,
-        _args: RenderArgs,
+        args: RenderArgs,
     ) {
+        let trans = centre.transform;
+        let trans = trans.trans(
+            args.draw_width as f64 / 2.0,
+            args.draw_height as f64 / 2.0,
+        );
+
         let now = self.clock.now();
         let position = self.game().matter.body.position(now);
         let pos = position - self.camera_position;
-        let trans = centre.transform.trans(pos.x.into(), pos.y.into());
+        let trans = trans.trans(pos.x.into(), pos.y.into());
 
         let radius = 50.0;
         let rect = [-radius, -radius, 2.0 * radius, 2.0 * radius];
