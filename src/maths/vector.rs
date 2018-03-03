@@ -32,6 +32,13 @@ impl Vector {
     pub fn inner(self: Vector, other: Vector) -> Scalar {
         self.x * other.x + self.y * other.y
     }
+
+    pub fn new(x: f64, y: f64) -> Vector {
+        let x = x.into();
+        let y = y.into();
+
+        Vector { x, y }
+    }
 }
 
 
