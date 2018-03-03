@@ -6,6 +6,8 @@ mod animation;
 pub mod maths;
 mod sulphate;
 
+use std::time;
+
 use piston_window::*;
 
 use maths::units;
@@ -16,14 +18,7 @@ pub struct App {
     camera_position: units::Position,
 }
 
-struct Clock {
-}
-
-impl Clock {
-    pub fn now(self: &Self) -> units::Time {
-        Default::default()
-    }
-}
+type Clock = sulphate_lib::clock::Simple<units::Time>;
 
 impl App {
     fn game(self: &mut Self) -> &mut sulphate::Game {
@@ -52,7 +47,8 @@ impl piston_app::App for App {
             args.draw_height as f64 / 2.0,
         );
 
-        let now = self.clock.now();
+        let now_rt = time::Instant::now();
+        let now = self.clock.time(now_rt);
         let position = self.game().matter.body.position(now);
         let pos = position - self.camera_position;
         let trans = trans.trans(pos.x.into(), pos.y.into());
@@ -68,7 +64,9 @@ impl piston_app::App for App {
         _args: UpdateArgs,
     ) {
         use sulphate_lib::event_queue::Simulation;
-        let now = self.clock.now();
+        // TODO a .now() method would be useful upstream
+        let now_rt = time::Instant::now();
+        let now = self.clock.time(now_rt);
         self.priv_game.simulate(now);
     }
 
@@ -91,7 +89,7 @@ pub fn start_app() -> App {
     let inner = sulphate::Game::new(matter, now);
     let priv_game = sulphate::PrivateGame { inner };
 
-    let clock = Clock {};
+    let clock = Clock::new(now);
 
     let camera_position = Default::default();
 

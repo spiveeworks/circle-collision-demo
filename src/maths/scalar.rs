@@ -1,6 +1,7 @@
 use std::cmp;
 use std::fmt;
 use std::ops;
+use std::time;
 
 use super::Inner;
 
@@ -26,6 +27,24 @@ impl From<Inner> for Scalar {
 impl From<Scalar> for Inner {
     fn from(val: Scalar) -> Inner {
         val.value
+    }
+}
+
+impl From<time::Duration> for Scalar {
+    fn from(val: time::Duration) -> Scalar {
+        let sec = val.as_secs() as Inner;
+        let nano = val.subsec_nanos() as Inner;
+        let value = sec + nano / 1_000_000_000.0;
+        Scalar { value }
+    }
+}
+
+impl From<Scalar> for time::Duration {
+    fn from(val: Scalar) -> time::Duration {
+        let val = val.value;
+        let sec = val.floor();
+        let nano = (val - sec) * 1_000_000_000.0;
+        time::Duration::new(sec as u64, nano as u32)
     }
 }
 
