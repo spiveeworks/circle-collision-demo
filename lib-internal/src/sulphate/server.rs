@@ -2,12 +2,12 @@ use std::sync::mpsc;
 use std::time;
 use std::thread;
 
+use sulphate_lib::clock;
 use sulphate_lib::server;
 
 use entities::player;
 use space;
 use sulphate;
-use sulphate::clock;
 use units;
 
 pub enum Interruption {

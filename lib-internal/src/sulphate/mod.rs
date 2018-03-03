@@ -5,7 +5,6 @@ use units;
 
 pub use sulphate::entity_heap::EntityHeap;
 
-pub mod clock;
 pub mod server;
 
 mod entity_heap;
