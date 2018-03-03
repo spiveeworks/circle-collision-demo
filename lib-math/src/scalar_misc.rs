@@ -1,5 +1,6 @@
-use std::fmt;
 use std::cmp;
+use std::fmt;
+use std::time;
 
 use super::{Scalar, Coord, Inner};
 
@@ -121,6 +122,25 @@ impl From<Scalar> for f64 {
     }
 }
 
+impl From<time::Duration> for Scalar {
+    fn from(duration: time::Duration) -> Scalar {
+        let seconds = duration.as_secs();
+        let nanos = duration.subsec_nanos();
+        let time_s: Scalar = (seconds as i32).into();
+        let time_n_num: Scalar = (nanos as i32).into();
+        let time_n = time_n_num / 1_000_000_000;
+        time_s + time_n
+    }
+}
+
+impl From<Scalar> for time::Duration {
+    fn from(duration: Scalar) -> time::Duration {
+        let time_s: i32 = duration.into();
+        let time_frac = duration - time_s.into();
+        let time_n: i32 = (time_frac * 1_000_000_000).into();
+        time::Duration::new(time_s as u64, time_n as u32)
+    }
+}
 
 impl PartialEq<i32> for Scalar {
     fn eq(self: &Scalar, other: &i32) -> bool {
